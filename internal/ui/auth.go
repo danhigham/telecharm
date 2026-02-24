@@ -1,99 +1,117 @@
 package ui
 
 import (
-	"github.com/rivo/tview"
+	"github.com/charmbracelet/bubbles/textinput"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+
+	"github.com/danhigham/tg-tui/internal/domain"
 )
 
-type AuthModal struct {
-	pages *tview.Pages
-	app   *tview.Application
-
-	phoneForm    *tview.Form
-	codeForm     *tview.Form
-	passwordForm *tview.Form
-
-	onPhone    func(phone string)
-	onCode     func(code string)
-	onPassword func(password string)
+// AuthModel handles authentication input (phone, code, 2FA password).
+type AuthModel struct {
+	textinput  textinput.Model
+	visible    bool
+	stage      domain.AuthState
+	onSubmit   func(stage domain.AuthState, value string)
+	width      int
+	height     int
 }
 
-func NewAuthModal(app *tview.Application, pages *tview.Pages) *AuthModal {
-	am := &AuthModal{
-		pages: pages,
-		app:   app,
+func NewAuthModel() AuthModel {
+	ti := textinput.New()
+	ti.CharLimit = 64
+
+	return AuthModel{
+		textinput: ti,
 	}
-	am.buildForms()
-	return am
 }
 
-func (am *AuthModal) buildForms() {
-	// Phone form
-	am.phoneForm = tview.NewForm().
-		AddInputField("Phone Number", "", 20, nil, nil).
-		AddButton("Submit", func() {
-			phone := am.phoneForm.GetFormItemByLabel("Phone Number").(*tview.InputField).GetText()
-			if phone != "" && am.onPhone != nil {
-				am.onPhone(phone)
-				am.pages.HidePage("auth")
+func (m AuthModel) Update(msg tea.Msg) (AuthModel, tea.Cmd) {
+	if !m.visible {
+		return m, nil
+	}
+
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		if msg.String() == "enter" {
+			value := m.textinput.Value()
+			if value != "" && m.onSubmit != nil {
+				m.onSubmit(m.stage, value)
+				m.visible = false
+				m.textinput.SetValue("")
+				m.textinput.Blur()
+				return m, nil
 			}
-		})
-	am.phoneForm.SetBorder(true).SetTitle(" Enter Phone Number ")
+		}
+	}
 
-	// Code form
-	am.codeForm = tview.NewForm().
-		AddInputField("Verification Code", "", 10, nil, nil).
-		AddButton("Submit", func() {
-			code := am.codeForm.GetFormItemByLabel("Verification Code").(*tview.InputField).GetText()
-			if code != "" && am.onCode != nil {
-				am.onCode(code)
-				am.pages.HidePage("auth")
-			}
-		})
-	am.codeForm.SetBorder(true).SetTitle(" Enter Verification Code ")
-
-	// Password form
-	am.passwordForm = tview.NewForm().
-		AddPasswordField("2FA Password", "", 20, '*', nil).
-		AddButton("Submit", func() {
-			pw := am.passwordForm.GetFormItemByLabel("2FA Password").(*tview.InputField).GetText()
-			if pw != "" && am.onPassword != nil {
-				am.onPassword(pw)
-				am.pages.HidePage("auth")
-			}
-		})
-	am.passwordForm.SetBorder(true).SetTitle(" Enter 2FA Password ")
+	var cmd tea.Cmd
+	m.textinput, cmd = m.textinput.Update(msg)
+	return m, cmd
 }
 
-func (am *AuthModal) SetCallbacks(onPhone func(string), onCode func(string), onPassword func(string)) {
-	am.onPhone = onPhone
-	am.onCode = onCode
-	am.onPassword = onPassword
+func (m AuthModel) View() string {
+	if !m.visible {
+		return ""
+	}
+
+	var title string
+	switch m.stage {
+	case domain.AuthStatePhone:
+		title = "Enter Phone Number"
+	case domain.AuthStateCode:
+		title = "Enter Verification Code"
+	case domain.AuthState2FA:
+		title = "Enter 2FA Password"
+	default:
+		title = "Authentication"
+	}
+
+	box := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(highlightColor).
+		Padding(1, 2).
+		Width(50).
+		Render(title + "\n\n" + m.textinput.View() + "\n\nPress Enter to submit")
+
+	return lipgloss.Place(m.width, m.height,
+		lipgloss.Center, lipgloss.Center,
+		box)
 }
 
-func (am *AuthModal) ShowPhone() {
-	am.phoneForm.GetFormItemByLabel("Phone Number").(*tview.InputField).SetText("")
-	centered := am.center(am.phoneForm, 50, 7)
-	am.pages.AddAndSwitchToPage("auth", centered, true)
-	am.app.SetFocus(am.phoneForm)
+func (m AuthModel) Show(stage domain.AuthState) AuthModel {
+	m.visible = true
+	m.stage = stage
+	m.textinput.SetValue("")
+
+	switch stage {
+	case domain.AuthStatePhone:
+		m.textinput.Placeholder = "+1234567890"
+		m.textinput.EchoMode = textinput.EchoNormal
+	case domain.AuthStateCode:
+		m.textinput.Placeholder = "12345"
+		m.textinput.EchoMode = textinput.EchoNormal
+	case domain.AuthState2FA:
+		m.textinput.Placeholder = "password"
+		m.textinput.EchoMode = textinput.EchoPassword
+	}
+
+	m.textinput.Focus()
+	return m
 }
 
-func (am *AuthModal) ShowCode() {
-	am.codeForm.GetFormItemByLabel("Verification Code").(*tview.InputField).SetText("")
-	centered := am.center(am.codeForm, 50, 7)
-	am.pages.AddAndSwitchToPage("auth", centered, true)
-	am.app.SetFocus(am.codeForm)
+func (m AuthModel) SetOnSubmit(fn func(stage domain.AuthState, value string)) AuthModel {
+	m.onSubmit = fn
+	return m
 }
 
-func (am *AuthModal) ShowPassword() {
-	am.passwordForm.GetFormItemByLabel("2FA Password").(*tview.InputField).SetText("")
-	centered := am.center(am.passwordForm, 50, 7)
-	am.pages.AddAndSwitchToPage("auth", centered, true)
-	am.app.SetFocus(am.passwordForm)
+func (m AuthModel) SetSize(w, h int) AuthModel {
+	m.width = w
+	m.height = h
+	return m
 }
 
-func (am *AuthModal) center(p tview.Primitive, width, height int) tview.Primitive {
-	return tview.NewGrid().
-		SetColumns(0, width, 0).
-		SetRows(0, height, 0).
-		AddItem(p, 1, 1, 1, 1, 0, 0, true)
+func (m AuthModel) IsVisible() bool {
+	return m.visible
 }
