@@ -45,23 +45,26 @@ func (d chatItemDelegate) Render(w io.Writer, m list.Model, index int, item list
 	}
 
 	isSelected := index == m.Index()
-	rowWidth := m.Width()
+	// Account for the cursor prefix ("  " or "> ") in available width.
+	contentWidth := m.Width() - 2
+	if contentWidth < 1 {
+		contentWidth = 1
+	}
 
-	// Base styles — full row width so background fills entire line.
-	// MaxHeight(1) prevents long text from wrapping to extra lines,
-	// which would exceed the delegate's declared Height() of 2.
-	titleStyle := lipgloss.NewStyle().Width(rowWidth).MaxHeight(1)
-	descStyle := lipgloss.NewStyle().Width(rowWidth).MaxHeight(1).Foreground(lipgloss.Color("240"))
+	titleStyle := lipgloss.NewStyle().Width(contentWidth).MaxHeight(1)
+	descStyle := lipgloss.NewStyle().Width(contentWidth).MaxHeight(1).Foreground(lipgloss.Color("240"))
 
+	cursor := "  "
 	if isSelected {
-		titleStyle = titleStyle.Background(lipgloss.Color("237")).Foreground(lipgloss.Color("15")).Bold(true)
-		descStyle = descStyle.Background(lipgloss.Color("237")).Foreground(lipgloss.Color("250"))
+		cursor = "> "
+		titleStyle = titleStyle.Foreground(lipgloss.Color("170")).Bold(true)
+		descStyle = descStyle.Foreground(lipgloss.Color("250"))
 	}
 	if ci.unreadCount > 0 {
 		titleStyle = titleStyle.Bold(true)
 	}
 
-	fmt.Fprintf(w, "%s\n%s", titleStyle.Render(title), descStyle.Render(desc))
+	fmt.Fprintf(w, "%s%s\n%s%s", cursor, titleStyle.Render(title), "  ", descStyle.Render(desc))
 }
 
 // ChatListModel wraps bubbles/list for the chat sidebar.
@@ -78,7 +81,7 @@ func NewChatListModel() ChatListModel {
 	l.SetShowTitle(false)
 	l.SetShowStatusBar(false)
 	l.SetShowHelp(false)
-	l.SetFilteringEnabled(false)
+	l.SetFilteringEnabled(true)
 	l.DisableQuitKeybindings()
 
 	return ChatListModel{list: l}
@@ -87,7 +90,8 @@ func NewChatListModel() ChatListModel {
 func (m ChatListModel) Update(msg tea.Msg) (ChatListModel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		if msg.String() == "enter" {
+		// Only handle enter for chat selection when not filtering.
+		if msg.String() == "enter" && m.list.FilterState() != list.Filtering {
 			if item, ok := m.list.SelectedItem().(chatItem); ok {
 				return m, func() tea.Msg {
 					return ChatSelectedMsg{ChatID: item.chatID}
@@ -97,7 +101,7 @@ func (m ChatListModel) Update(msg tea.Msg) (ChatListModel, tea.Cmd) {
 		}
 	}
 
-	// Delegate all other keys (including j/k) to the list for native scrolling
+	// Delegate all other keys (including j/k and filter '/') to the list
 	var cmd tea.Cmd
 	m.list, cmd = m.list.Update(msg)
 	return m, cmd

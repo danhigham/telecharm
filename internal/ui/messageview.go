@@ -85,7 +85,7 @@ func (m MessageViewModel) View() string {
 	}
 
 	// Header: title on left, status pill on right
-	headerStyle := lipgloss.NewStyle().Bold(true).Foreground(borderColor(m.focused))
+	headerStyle := lipgloss.NewStyle().Bold(true).Underline(true).Foreground(lipgloss.Color("170"))
 	titleStr := headerStyle.Render(title)
 
 	header := titleStr
@@ -97,7 +97,7 @@ func (m MessageViewModel) View() string {
 		header = titleStr + strings.Repeat(" ", gap) + m.statusPill
 	}
 
-	content := header + "\n" + m.viewport.View()
+	content := header + "\n\n" + m.viewport.View()
 
 	// Truncate content to innerH lines to prevent border overflow
 	content = truncateHeight(content, innerH)
@@ -114,9 +114,9 @@ func (m MessageViewModel) View() string {
 func (m MessageViewModel) SetSize(w, h int) MessageViewModel {
 	m.width = w
 	m.height = h
-	// Viewport inner: border (2) + header line (1)
+	// Viewport inner: border (2) + header line (1) + blank row (1)
 	vpW := w - 2
-	vpH := h - 2 - 1
+	vpH := h - 2 - 2
 	if vpW < 1 {
 		vpW = 1
 	}
