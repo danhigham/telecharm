@@ -113,7 +113,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			chatID := msg.ChatID
 			client := m.client
 			cmds = append(cmds, func() tea.Msg {
-				history, err := client.GetHistory(context.Background(), chatID, 50)
+				history, err := client.GetHistory(context.Background(), chatID, 50, 0)
 				if err != nil {
 					return SendErrorMsg{Err: err}
 				}
@@ -126,6 +126,33 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.store.SetMessages(msg.ChatID, msg.Messages)
 		if m.store.GetActiveChat() == msg.ChatID {
 			m.messageView = m.messageView.SetMessages(msg.Messages)
+		}
+		return m, nil
+
+	case LoadOlderHistoryMsg:
+		if m.store.GetActiveChat() != msg.ChatID {
+			return m, nil
+		}
+		oldestID := m.store.GetOldestMessageID(msg.ChatID)
+		if oldestID == 0 {
+			return m, nil
+		}
+		m.messageView = m.messageView.SetLoading(true)
+		chatID := msg.ChatID
+		client := m.client
+		cmds = append(cmds, func() tea.Msg {
+			history, err := client.GetHistory(context.Background(), chatID, 50, oldestID)
+			if err != nil {
+				return SendErrorMsg{Err: err}
+			}
+			return OlderHistoryLoadedMsg{ChatID: chatID, Messages: history}
+		})
+		return m, tea.Batch(cmds...)
+
+	case OlderHistoryLoadedMsg:
+		m.store.PrependMessages(msg.ChatID, msg.Messages)
+		if m.store.GetActiveChat() == msg.ChatID {
+			m.messageView = m.messageView.PrependMessages(msg.Messages)
 		}
 		return m, nil
 

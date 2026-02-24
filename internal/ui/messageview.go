@@ -23,6 +23,8 @@ type MessageViewModel struct {
 	typingUser  string
 	messages    []domain.Message
 	statusPill  string // rendered status pill to show in header
+	loading     bool   // true while fetching older history
+	hasMore     bool   // false when history is exhausted
 }
 
 func NewMessageViewModel() MessageViewModel {
@@ -39,13 +41,32 @@ func (m MessageViewModel) Update(msg tea.Msg) (MessageViewModel, tea.Cmd) {
 			return m, nil
 		case "k":
 			m.viewport.LineUp(1)
-			return m, nil
+			return m, m.checkScrollTop()
 		}
 	}
 
 	var cmd tea.Cmd
 	m.viewport, cmd = m.viewport.Update(msg)
-	return m, cmd
+
+	var cmds []tea.Cmd
+	if cmd != nil {
+		cmds = append(cmds, cmd)
+	}
+	if scrollCmd := m.checkScrollTop(); scrollCmd != nil {
+		cmds = append(cmds, scrollCmd)
+	}
+	return m, tea.Batch(cmds...)
+}
+
+// checkScrollTop returns a command to load older history if scrolled to top.
+func (m MessageViewModel) checkScrollTop() tea.Cmd {
+	if m.viewport.YOffset == 0 && !m.loading && m.hasMore && len(m.messages) > 0 {
+		chatID := m.messages[0].ChatID
+		return func() tea.Msg {
+			return LoadOlderHistoryMsg{ChatID: chatID}
+		}
+	}
+	return nil
 }
 
 func (m MessageViewModel) View() string {
@@ -126,7 +147,40 @@ func (m MessageViewModel) SetTypingUser(name string) MessageViewModel {
 
 func (m MessageViewModel) SetMessages(msgs []domain.Message) MessageViewModel {
 	m.messages = msgs
+	m.hasMore = true
+	m.loading = false
 	m = m.renderContent()
+	return m
+}
+
+// PrependMessages adds older messages to the top and preserves scroll position.
+func (m MessageViewModel) PrependMessages(msgs []domain.Message) MessageViewModel {
+	m.loading = false
+	m.hasMore = len(msgs) > 0
+
+	if len(msgs) == 0 {
+		return m
+	}
+
+	// Remember old content height.
+	oldTotalLines := m.viewport.TotalLineCount()
+
+	m.messages = append(msgs, m.messages...)
+	m = m.renderContentNoScroll()
+
+	// Calculate how many new lines were added and adjust offset.
+	newTotalLines := m.viewport.TotalLineCount()
+	delta := newTotalLines - oldTotalLines
+	if delta < 0 {
+		delta = 0
+	}
+	m.viewport.SetYOffset(delta)
+	return m
+}
+
+// SetLoading marks the view as loading older history.
+func (m MessageViewModel) SetLoading(v bool) MessageViewModel {
+	m.loading = v
 	return m
 }
 
@@ -150,7 +204,15 @@ func (m MessageViewModel) recreateRenderer() MessageViewModel {
 	return m
 }
 
+func (m MessageViewModel) renderContentNoScroll() MessageViewModel {
+	return m.renderContentInner(false)
+}
+
 func (m MessageViewModel) renderContent() MessageViewModel {
+	return m.renderContentInner(true)
+}
+
+func (m MessageViewModel) renderContentInner(gotoBottom bool) MessageViewModel {
 	var b strings.Builder
 	var currentDate string
 
@@ -198,7 +260,9 @@ func (m MessageViewModel) renderContent() MessageViewModel {
 	// Wrap content to viewport width so long lines don't overflow
 	wrapped := lipgloss.NewStyle().Width(m.viewport.Width).Render(b.String())
 	m.viewport.SetContent(wrapped)
-	m.viewport.GotoBottom()
+	if gotoBottom {
+		m.viewport.GotoBottom()
+	}
 	return m
 }
 

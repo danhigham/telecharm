@@ -40,6 +40,17 @@ type SendErrorMsg struct {
 	Err error
 }
 
+// LoadOlderHistoryMsg is emitted when the user scrolls to the top of messages.
+type LoadOlderHistoryMsg struct {
+	ChatID int64
+}
+
+// OlderHistoryLoadedMsg delivers older history fetched asynchronously.
+type OlderHistoryLoadedMsg struct {
+	ChatID   int64
+	Messages []domain.Message
+}
+
 // StoreUpdatedCmd returns a command that emits StoreUpdatedMsg.
 func StoreUpdatedCmd() tea.Msg {
 	return StoreUpdatedMsg{}

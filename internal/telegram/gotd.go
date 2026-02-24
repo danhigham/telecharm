@@ -189,15 +189,16 @@ func (c *GotdClient) SendMessage(ctx context.Context, chatID int64, text string)
 }
 
 // GetHistory retrieves message history for a chat.
-func (c *GotdClient) GetHistory(ctx context.Context, chatID int64, limit int) ([]domain.Message, error) {
+func (c *GotdClient) GetHistory(ctx context.Context, chatID int64, limit int, offsetID int) ([]domain.Message, error) {
 	peer := c.findPeer(chatID)
 	if peer == nil {
 		return nil, fmt.Errorf("unknown peer: %d", chatID)
 	}
 
 	result, err := c.api.MessagesGetHistory(ctx, &tg.MessagesGetHistoryRequest{
-		Peer:  peer,
-		Limit: limit,
+		Peer:     peer,
+		Limit:    limit,
+		OffsetID: offsetID,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("get history: %w", err)

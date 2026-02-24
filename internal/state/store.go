@@ -169,6 +169,46 @@ func (s *Store) SetMessages(chatID int64, msgs []domain.Message) {
 	s.draw()
 }
 
+// PrependMessages adds older messages to the front of the existing slice,
+// deduplicating by message ID and respecting maxMessages.
+func (s *Store) PrependMessages(chatID int64, msgs []domain.Message) {
+	s.mu.Lock()
+	existing := s.messages[chatID]
+
+	// Build a set of existing message IDs for deduplication.
+	idSet := make(map[int]struct{}, len(existing))
+	for _, m := range existing {
+		idSet[m.ID] = struct{}{}
+	}
+
+	// Filter out duplicates from the new messages.
+	var unique []domain.Message
+	for _, m := range msgs {
+		if _, ok := idSet[m.ID]; !ok {
+			unique = append(unique, m)
+		}
+	}
+
+	combined := append(unique, existing...)
+	if len(combined) > maxMessages {
+		combined = combined[len(combined)-maxMessages:]
+	}
+	s.messages[chatID] = combined
+	s.mu.Unlock()
+}
+
+// GetOldestMessageID returns the ID of the oldest cached message for a chat,
+// or 0 if no messages are cached.
+func (s *Store) GetOldestMessageID(chatID int64) int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	msgs := s.messages[chatID]
+	if len(msgs) == 0 {
+		return 0
+	}
+	return msgs[0].ID
+}
+
 func (s *Store) SetActiveChat(chatID int64) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
