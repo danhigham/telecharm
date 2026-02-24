@@ -1,9 +1,9 @@
 package ui
 
 import (
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/danhigham/tg-tui/internal/domain"
 )
@@ -97,7 +97,7 @@ func (m AuthModel) Show(stage domain.AuthState) AuthModel {
 		m.textinput.EchoMode = textinput.EchoPassword
 	}
 
-	m.textinput.Focus()
+	_ = m.textinput.Focus()
 	return m
 }
 

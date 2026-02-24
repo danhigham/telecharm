@@ -1,9 +1,9 @@
 package ui
 
 import (
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 // InputModel wraps a bubbles textinput for message composition.
@@ -44,27 +44,18 @@ func (m InputModel) Update(msg tea.Msg) (InputModel, tea.Cmd) {
 }
 
 func (m InputModel) View() string {
-	innerW := m.width - 2
-	innerH := m.height - 2
-	if innerW < 0 {
-		innerW = 0
-	}
-	if innerH < 0 {
-		innerH = 0
-	}
-
 	style := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(borderColor(m.focused)).
-		Width(innerW).
-		Height(innerH)
+		Width(m.width).
+		Height(m.height)
 
 	return style.Render(m.textinput.View())
 }
 
 func (m InputModel) Focus() InputModel {
 	m.focused = true
-	m.textinput.Focus()
+	_ = m.textinput.Focus()
 	return m
 }
 
@@ -78,10 +69,11 @@ func (m InputModel) SetSize(w, h int) InputModel {
 	m.width = w
 	m.height = h
 	// Inner width: subtract border (2) and prompt "> " (2)
-	m.textinput.Width = w - 4
-	if m.textinput.Width < 1 {
-		m.textinput.Width = 1
+	tiWidth := w - 4
+	if tiWidth < 1 {
+		tiWidth = 1
 	}
+	m.textinput.SetWidth(tiWidth)
 	return m
 }
 

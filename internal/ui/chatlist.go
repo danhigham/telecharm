@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/charmbracelet/bubbles/list"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/list"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/danhigham/tg-tui/internal/domain"
 )
@@ -40,9 +40,6 @@ func (d chatItemDelegate) Render(w io.Writer, m list.Model, index int, item list
 	}
 
 	desc := ci.lastMessage
-	if len(desc) > 50 {
-		desc = desc[:50] + "..."
-	}
 
 	isSelected := index == m.Index()
 	// Account for the cursor prefix ("  " or "> ") in available width.
@@ -51,8 +48,8 @@ func (d chatItemDelegate) Render(w io.Writer, m list.Model, index int, item list
 		contentWidth = 1
 	}
 
-	titleStyle := lipgloss.NewStyle().Width(contentWidth).MaxHeight(1)
-	descStyle := lipgloss.NewStyle().Width(contentWidth).MaxHeight(1).Foreground(lipgloss.Color("240"))
+	titleStyle := lipgloss.NewStyle().MaxWidth(contentWidth).MaxHeight(1)
+	descStyle := lipgloss.NewStyle().MaxWidth(contentWidth).MaxHeight(1).Foreground(lipgloss.Color("240"))
 
 	cursor := "  "
 	if isSelected {
@@ -108,23 +105,19 @@ func (m ChatListModel) Update(msg tea.Msg) (ChatListModel, tea.Cmd) {
 }
 
 func (m ChatListModel) View() string {
-	innerW := m.width - 2
-	innerH := m.height - 2
-	if innerW < 0 {
-		innerW = 0
-	}
-	if innerH < 0 {
-		innerH = 0
+	contentH := m.height - 2
+	if contentH < 0 {
+		contentH = 0
 	}
 
-	// Truncate list output to exactly innerH lines to prevent overflow
-	content := truncateHeight(m.list.View(), innerH)
+	// Truncate list output to content area inside border
+	content := truncateHeight(m.list.View(), contentH)
 
 	style := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(borderColor(m.focused)).
-		Width(innerW).
-		Height(innerH)
+		Width(m.width).
+		Height(m.height)
 
 	return style.Render(content)
 }

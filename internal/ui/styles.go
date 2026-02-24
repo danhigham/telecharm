@@ -1,9 +1,10 @@
 package ui
 
 import (
+	"image/color"
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 )
 
 var (
@@ -13,11 +14,11 @@ var (
 	inNameStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color("4")).Bold(true)
 	typingStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Italic(true)
 
-	highlightColor = lipgloss.Color("6")  // cyan
+	highlightColor = lipgloss.Color("6")   // cyan
 	dimColor       = lipgloss.Color("240") // gray
 )
 
-func borderColor(focused bool) lipgloss.Color {
+func borderColor(focused bool) color.Color {
 	if focused {
 		return highlightColor
 	}

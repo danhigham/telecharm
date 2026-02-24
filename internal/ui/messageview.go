@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/viewport"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/viewport"
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/glamour"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 
 	"github.com/danhigham/tg-tui/internal/domain"
 )
@@ -28,7 +28,7 @@ type MessageViewModel struct {
 }
 
 func NewMessageViewModel() MessageViewModel {
-	vp := viewport.New(0, 0)
+	vp := viewport.New()
 	return MessageViewModel{viewport: vp}
 }
 
@@ -37,10 +37,10 @@ func (m MessageViewModel) Update(msg tea.Msg) (MessageViewModel, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "j":
-			m.viewport.LineDown(1)
+			m.viewport.ScrollDown(1)
 			return m, nil
 		case "k":
-			m.viewport.LineUp(1)
+			m.viewport.ScrollUp(1)
 			return m, m.checkScrollTop()
 		}
 	}
@@ -60,7 +60,7 @@ func (m MessageViewModel) Update(msg tea.Msg) (MessageViewModel, tea.Cmd) {
 
 // checkScrollTop returns a command to load older history if scrolled to top.
 func (m MessageViewModel) checkScrollTop() tea.Cmd {
-	if m.viewport.YOffset == 0 && !m.loading && m.hasMore && len(m.messages) > 0 {
+	if m.viewport.YOffset() == 0 && !m.loading && m.hasMore && len(m.messages) > 0 {
 		chatID := m.messages[0].ChatID
 		return func() tea.Msg {
 			return LoadOlderHistoryMsg{ChatID: chatID}
@@ -70,13 +70,13 @@ func (m MessageViewModel) checkScrollTop() tea.Cmd {
 }
 
 func (m MessageViewModel) View() string {
-	innerW := m.width - 2
-	innerH := m.height - 2
-	if innerW < 0 {
-		innerW = 0
+	contentW := m.width - 2
+	contentH := m.height - 2
+	if contentW < 0 {
+		contentW = 0
 	}
-	if innerH < 0 {
-		innerH = 0
+	if contentH < 0 {
+		contentH = 0
 	}
 
 	title := " Messages "
@@ -90,7 +90,7 @@ func (m MessageViewModel) View() string {
 
 	header := titleStr
 	if m.statusPill != "" {
-		gap := innerW - lipgloss.Width(titleStr) - lipgloss.Width(m.statusPill)
+		gap := contentW - lipgloss.Width(titleStr) - lipgloss.Width(m.statusPill)
 		if gap < 1 {
 			gap = 1
 		}
@@ -99,14 +99,14 @@ func (m MessageViewModel) View() string {
 
 	content := header + "\n\n" + m.viewport.View()
 
-	// Truncate content to innerH lines to prevent border overflow
-	content = truncateHeight(content, innerH)
+	// Truncate content to content area inside border
+	content = truncateHeight(content, contentH)
 
 	style := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(borderColor(m.focused)).
-		Width(innerW).
-		Height(innerH)
+		Width(m.width).
+		Height(m.height)
 
 	return style.Render(content)
 }
@@ -116,15 +116,15 @@ func (m MessageViewModel) SetSize(w, h int) MessageViewModel {
 	m.height = h
 	// Viewport inner: border (2) + header line (1) + blank row (1)
 	vpW := w - 2
-	vpH := h - 2 - 2
+	vpH := h - 2 - 2 // content area (h-2 for border) minus 2 for header+blank
 	if vpW < 1 {
 		vpW = 1
 	}
 	if vpH < 1 {
 		vpH = 1
 	}
-	m.viewport.Width = vpW
-	m.viewport.Height = vpH
+	m.viewport.SetWidth(vpW)
+	m.viewport.SetHeight(vpH)
 	m = m.recreateRenderer()
 	m = m.renderContent()
 	return m
@@ -190,7 +190,7 @@ func (m MessageViewModel) SetStatusPill(pill string) MessageViewModel {
 }
 
 func (m MessageViewModel) recreateRenderer() MessageViewModel {
-	wordWrap := m.viewport.Width - 2
+	wordWrap := m.viewport.Width() - 2
 	if wordWrap < 10 {
 		wordWrap = 10
 	}
@@ -258,7 +258,7 @@ func (m MessageViewModel) renderContentInner(gotoBottom bool) MessageViewModel {
 	}
 
 	// Wrap content to viewport width so long lines don't overflow
-	wrapped := lipgloss.NewStyle().Width(m.viewport.Width).Render(b.String())
+	wrapped := lipgloss.NewStyle().Width(m.viewport.Width()).Render(b.String())
 	m.viewport.SetContent(wrapped)
 	if gotoBottom {
 		m.viewport.GotoBottom()

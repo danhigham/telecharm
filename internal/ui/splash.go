@@ -3,12 +3,34 @@ package ui
 import "charm.land/lipgloss/v2"
 
 const splashArt = `
- _                  _         _
-| |_ __ _       __ | |_ _   _(_)
-| __/ _` + "`" + ` |____ / _` + "`" + ` | __| | | | |
-| || (_| |____| (_| | |_| |_| | |
- \__\__, |     \__,_|\__|\__,_|_|
-    |___/
+                          ░▒▒▒▒▒▒░                          
+                   ░▓█████▓▓▓▓▓▓▓▓▓███▓▓░                   
+                ▓██▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓▓██▓                
+             ▒█▓▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓▓█▒             
+           ▓█▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓█▓           
+         ▒█▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓█▒         
+        ▓▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓▓        
+       █▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓▓▓▓▒▒▒▒▒▒▒▓█       
+      █▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓█████  ▓▒▒▒▒▒▒▒▒▓█      
+     █▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓████▒       █▒▒▒▒▒▒▒▒▒▓█     
+    ▒▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓████▒            █▒▒▒▒▒▒▒▒▒▒▓▒    
+    █▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓████▒        ▒█      ▓▓▒▒▒▒▒▒▒▒▒▒▒█    
+   ░█▒▒▒▒▒▒▒▒▒▒▓████▒          ░▓▓        █▒▒▒▒▒▒▒▒▒▒▒▒▓░   
+   ▓▓▒▒▒▒▒▒▒▒▒▓▒            ░▓▓▓         ▓▓▒▒▒▒▒▒▒▒▒▒▒▒▓▓   
+   ▓▓▒▒▒▒▒▒▒▒▒▓          ▒▒▒▒▓           █▒▒▒▒▒▒▒▒▒▒▒▒▒▓▓   
+   ▒▓▒▒▒▒▒▒▒▒▒▓█████▒  ▒▒▒▒▒             █▒▒▒▒▒▒▒▒▒▒▒▒▒▓▒   
+   ░█▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓█                  █▓▒▒▒▒▒▒▒▒▒▒▒▒▒█    
+    █▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓█  ▒▓▒           ░█▒▒▒▒▒▒▒▒▒▒▒▒▒▓█    
+    ▒█▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓▒ ▒░░░▓▒        █▓▒▒▒▒▒▒▒▒▒▒▒▒▒█▒    
+     █▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒█   ▒▓▓███░     █▒▒▒▒▒▒▒▒▒▒▒▒▒▓█     
+      █▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓▓▓▓▓▒▒▒▒▓██▓  █▓▒▒▒▒▒▒▒▒▒▒▒▒▓█      
+       █▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓██▓▒▒▒▒▒▒▒▒▒▒▒▒██       
+        ▓█▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓█▓        
+          ██▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓██          
+           ▒██▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓██▒           
+              ███▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓███              
+                ░████▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓████░                
+                    ▒██████████████████▒                    
 `
 
 // SplashModel renders a centered splash overlay on startup.
@@ -59,17 +81,33 @@ func (s SplashModel) ConnReady() SplashModel {
 	return s
 }
 
-// View renders the splash box centered to the full terminal.
+// View renders the splash box (without full-screen placement).
+// Use BoxOffset to get the X/Y for centering via the Layer API.
 func (s SplashModel) View() string {
 	if !s.visible || s.width == 0 || s.height == 0 {
 		return ""
 	}
 
-	box := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(highlightColor).
+	return lipgloss.NewStyle().
+		Border(lipgloss.DoubleBorder()).
+		BorderForeground(lipgloss.Color("#FFFFFF")).
 		Padding(1, 3).
 		Render(splashArt)
+}
 
-	return lipgloss.Place(s.width, s.height, lipgloss.Center, lipgloss.Center, box)
+// BoxOffset returns the (x, y) needed to center the splash box
+// within the terminal dimensions.
+func (s SplashModel) BoxOffset() (int, int) {
+	box := s.View()
+	bw := lipgloss.Width(box)
+	bh := lipgloss.Height(box)
+	x := (s.width - bw) / 2
+	y := (s.height - bh) / 2
+	if x < 0 {
+		x = 0
+	}
+	if y < 0 {
+		y = 0
+	}
+	return x, y
 }

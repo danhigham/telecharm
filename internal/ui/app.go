@@ -94,6 +94,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case StoreUpdatedMsg:
 		m = m.refreshFromStore()
+		// Auto-select the first chat if none is active yet.
+		if m.store.GetActiveChat() == 0 {
+			chats := m.store.GetChatList()
+			if len(chats) > 0 {
+				return m, func() tea.Msg {
+					return ChatSelectedMsg{ChatID: chats[0].ID}
+				}
+			}
+		}
 		return m, nil
 
 	case AuthRequestMsg:
@@ -282,8 +291,9 @@ func (m Model) View() tea.View {
 		Render(full)
 
 	if m.splash.IsVisible() {
+		x, y := m.splash.BoxOffset()
 		bg := lipgloss.NewLayer(mainContent)
-		fg := lipgloss.NewLayer(m.splash.View()).Z(1)
+		fg := lipgloss.NewLayer(m.splash.View()).X(x).Y(y).Z(1)
 		comp := lipgloss.NewCompositor(bg, fg)
 		v.SetContent(comp.Render())
 	} else {
