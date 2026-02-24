@@ -3,9 +3,10 @@ package ui
 import (
 	"context"
 	"fmt"
+	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/danhigham/tg-tui/internal/domain"
 	"github.com/danhigham/tg-tui/internal/state"
@@ -32,6 +33,7 @@ type Model struct {
 	input       InputModel
 	auth        AuthModel
 	status      statusModel
+	splash      SplashModel
 
 	store    *state.Store
 	client   telegram.Client
@@ -50,6 +52,7 @@ func NewModel(store *state.Store, client telegram.Client, authFlow *telegram.TUI
 		input:       NewInputModel(),
 		auth:        NewAuthModel(),
 		status:      newStatusModel(),
+		splash:      NewSplashModel(),
 		store:       store,
 		client:      client,
 		authFlow:    authFlow,
@@ -73,7 +76,10 @@ func NewModel(store *state.Store, client telegram.Client, authFlow *telegram.TUI
 }
 
 func (m Model) Init() tea.Cmd {
-	return tea.Batch(m.input.Init(), tea.WindowSize())
+	return tea.Batch(
+		m.input.Init(),
+		tea.Tick(3*time.Second, func(time.Time) tea.Msg { return SplashDoneMsg{} }),
+	)
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -172,10 +178,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		})
 		return m, tea.Batch(cmds...)
 
+	case SplashDoneMsg:
+		m.splash = m.splash.TimerDone()
+		return m, nil
+
 	case StatusMsg:
 		m.status.text = msg.Text
 		m.status.connected = msg.Connected
 		m.messageView = m.messageView.SetStatusPill(m.status.View())
+		if msg.Connected {
+			m.splash = m.splash.ConnReady()
+		}
 		return m, nil
 
 	case SendErrorMsg:
@@ -184,6 +197,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
+		if m.splash.IsVisible() {
+			if msg.String() == "ctrl+c" {
+				return m, tea.Quit
+			}
+			return m, nil
+		}
+
 		if m.auth.IsVisible() {
 			var cmd tea.Cmd
 			m.auth, cmd = m.auth.Update(msg)
@@ -231,13 +251,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m Model) View() string {
+func (m Model) View() tea.View {
+	v := tea.NewView("")
+	v.AltScreen = true
+
 	if m.width == 0 || m.height == 0 {
-		return ""
+		return v
 	}
 
 	if m.auth.IsVisible() {
-		return m.auth.View()
+		v.SetContent(m.auth.View())
+		return v
 	}
 
 	// Chat list on the left
@@ -252,10 +276,20 @@ func (m Model) View() string {
 	full := lipgloss.JoinHorizontal(lipgloss.Top, chatListView, rightPane)
 
 	// Clamp to terminal dimensions
-	return lipgloss.NewStyle().
+	mainContent := lipgloss.NewStyle().
 		MaxWidth(m.width).
 		MaxHeight(m.height).
 		Render(full)
+
+	if m.splash.IsVisible() {
+		bg := lipgloss.NewLayer(mainContent)
+		fg := lipgloss.NewLayer(m.splash.View()).Z(1)
+		comp := lipgloss.NewCompositor(bg, fg)
+		v.SetContent(comp.Render())
+	} else {
+		v.SetContent(mainContent)
+	}
+	return v
 }
 
 func (m Model) distributeSize() Model {
@@ -285,6 +319,7 @@ func (m Model) distributeSize() Model {
 	m.input = m.input.SetSize(rightWidth, inputRenderedHeight)
 
 	m.auth = m.auth.SetSize(m.width, m.height)
+	m.splash = m.splash.SetSize(m.width, m.height)
 
 	return m
 }
@@ -318,7 +353,7 @@ type App struct {
 // NewApp creates a new App ready to Run.
 func NewApp(store *state.Store, client telegram.Client, authFlow *telegram.TUIAuth) *App {
 	model := NewModel(store, client, authFlow)
-	p := tea.NewProgram(model, tea.WithAltScreen())
+	p := tea.NewProgram(model)
 	return &App{program: p}
 }
 

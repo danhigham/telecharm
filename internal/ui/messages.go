@@ -1,7 +1,7 @@
 package ui
 
 import (
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/danhigham/tg-tui/internal/domain"
 )
 
@@ -50,6 +50,9 @@ type OlderHistoryLoadedMsg struct {
 	ChatID   int64
 	Messages []domain.Message
 }
+
+// SplashDoneMsg signals that the splash screen timeout has elapsed.
+type SplashDoneMsg struct{}
 
 // StoreUpdatedCmd returns a command that emits StoreUpdatedMsg.
 func StoreUpdatedCmd() tea.Msg {
