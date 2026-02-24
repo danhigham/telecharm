@@ -3,16 +3,24 @@ package state
 import (
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/danhigham/tg-tui/internal/domain"
 )
 
 const maxMessages = 500
+const typingTimeout = 6 * time.Second
+
+type typingInfo struct {
+	userName string
+	timer    *time.Timer
+}
 
 type Store struct {
 	mu         sync.RWMutex
 	chatList   []domain.ChatInfo
 	messages   map[int64][]domain.Message
+	typing     map[int64]*typingInfo
 	activeChat int64
 	authState  domain.AuthState
 	drawFunc   func()
@@ -21,6 +29,7 @@ type Store struct {
 func New(drawFunc func()) *Store {
 	return &Store{
 		messages: make(map[int64][]domain.Message),
+		typing:   make(map[int64]*typingInfo),
 		drawFunc: drawFunc,
 	}
 }
@@ -39,7 +48,6 @@ func (s *Store) draw() {
 
 func (s *Store) OnNewMessage(msg domain.Message) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 
 	msgs := s.messages[msg.ChatID]
 	msgs = append(msgs, msg)
@@ -60,33 +68,75 @@ func (s *Store) OnNewMessage(msg domain.Message) {
 		}
 	}
 	s.sortChatList()
+	s.mu.Unlock()
 	s.draw()
 }
 
 func (s *Store) OnChatListUpdate(chats []domain.ChatInfo) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	s.chatList = chats
 	s.sortChatList()
+	s.mu.Unlock()
 	s.draw()
 }
 
 func (s *Store) OnMessageRead(chatID int64, maxID int) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	for i, c := range s.chatList {
 		if c.ID == chatID {
 			s.chatList[i].UnreadCount = 0
 			break
 		}
 	}
+	s.mu.Unlock()
 	s.draw()
 }
 
 func (s *Store) OnUserStatus(userID int64, online bool) {
 	// Future: update online indicators
+}
+
+func (s *Store) OnUserTyping(chatID int64, userName string) {
+	s.mu.Lock()
+	if existing, ok := s.typing[chatID]; ok {
+		existing.timer.Stop()
+		existing.userName = userName
+		existing.timer = time.AfterFunc(typingTimeout, func() {
+			s.clearTyping(chatID)
+		})
+	} else {
+		s.typing[chatID] = &typingInfo{
+			userName: userName,
+			timer: time.AfterFunc(typingTimeout, func() {
+				s.clearTyping(chatID)
+			}),
+		}
+	}
+	s.mu.Unlock()
+	s.draw()
+}
+
+func (s *Store) OnUserTypingStop(chatID int64) {
+	s.clearTyping(chatID)
+}
+
+func (s *Store) clearTyping(chatID int64) {
+	s.mu.Lock()
+	if info, ok := s.typing[chatID]; ok {
+		info.timer.Stop()
+		delete(s.typing, chatID)
+	}
+	s.mu.Unlock()
+	s.draw()
+}
+
+func (s *Store) GetTypingUser(chatID int64) string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if info, ok := s.typing[chatID]; ok {
+		return info.userName
+	}
+	return ""
 }
 
 func (s *Store) sortChatList() {
@@ -114,8 +164,8 @@ func (s *Store) GetMessages(chatID int64) []domain.Message {
 
 func (s *Store) SetMessages(chatID int64, msgs []domain.Message) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.messages[chatID] = msgs
+	s.mu.Unlock()
 	s.draw()
 }
 
@@ -133,8 +183,8 @@ func (s *Store) GetActiveChat() int64 {
 
 func (s *Store) SetAuthState(as domain.AuthState) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.authState = as
+	s.mu.Unlock()
 	s.draw()
 }
 

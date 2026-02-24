@@ -20,6 +20,9 @@ func NewChatList() *ChatList {
 	}
 	cl.ShowSecondaryText(true)
 	cl.SetBorder(true).SetTitle(" Chats ")
+	cl.SetBackgroundColor(tcell.ColorDefault)
+	cl.SetMainTextColor(tcell.ColorDefault)
+	cl.SetSecondaryTextColor(tcell.ColorGray)
 	cl.SetHighlightFullLine(true)
 	cl.SetSelectedStyle(tcell.StyleDefault.
 		Background(tcell.ColorDarkCyan).

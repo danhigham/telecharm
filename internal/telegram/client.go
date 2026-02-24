@@ -12,6 +12,8 @@ type EventHandler interface {
 	OnChatListUpdate(chats []domain.ChatInfo)
 	OnMessageRead(chatID int64, maxID int)
 	OnUserStatus(userID int64, online bool)
+	OnUserTyping(chatID int64, userName string)
+	OnUserTypingStop(chatID int64)
 }
 
 // Client is the interface for Telegram operations.

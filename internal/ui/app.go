@@ -22,16 +22,25 @@ type App struct {
 }
 
 func NewApp(store *state.Store) *App {
+	// Use transparent backgrounds everywhere so the terminal theme shows through.
+	tview.Styles.PrimitiveBackgroundColor = tcell.ColorDefault
+	tview.Styles.ContrastBackgroundColor = tcell.ColorDefault
+	tview.Styles.MoreContrastBackgroundColor = tcell.ColorDefault
+
 	a := &App{
-		Application: tview.NewApplication(),
+		Application: tview.NewApplication().EnableMouse(true),
 		Store:       store,
 	}
 
 	a.ChatList = NewChatList()
 	a.MessageView = NewMessageView()
 	a.Input = NewInput()
-	a.StatusBar = tview.NewTextView().SetDynamicColors(true)
-	a.StatusBar.SetText("[yellow]Connecting...")
+
+	// Status indicator: dark yellow background while connecting.
+	a.StatusBar = tview.NewTextView().SetTextAlign(tview.AlignCenter)
+	a.StatusBar.SetBackgroundColor(tcell.ColorOlive)
+	a.StatusBar.SetTextColor(tcell.ColorWhite)
+	a.StatusBar.SetText(" Connecting… ")
 
 	a.Pages = tview.NewPages()
 	a.AuthModal = NewAuthModal(a.Application, a.Pages)
@@ -46,22 +55,37 @@ func NewApp(store *state.Store) *App {
 }
 
 func (a *App) buildLayout() {
-	// Right pane: messages + input stacked vertically
-	rightPane := tview.NewFlex().SetDirection(tview.FlexRow).
+	// Right pane content: messages + input stacked vertically.
+	rightContent := tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(a.MessageView, 0, 1, false).
-		AddItem(a.Input, 1, 0, false)
+		AddItem(a.Input, 6, 0, false)
+	rightContent.SetBackgroundColor(tcell.ColorDefault)
 
-	// Main layout: chat list | right pane
+	// Overlay the status indicator on the right pane (1 row down, 1 col in from right).
+	statusRow := tview.NewFlex().
+		AddItem(nil, 0, 1, false).
+		AddItem(a.StatusBar, 16, 0, false).
+		AddItem(nil, 2, 0, false)
+	statusRow.SetBackgroundColor(tcell.ColorDefault)
+	statusOverlay := tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(nil, 1, 0, false).
+		AddItem(statusRow, 1, 0, false).
+		AddItem(nil, 0, 1, false)
+	statusOverlay.SetBackgroundColor(tcell.ColorDefault)
+
+	rightPane := tview.NewPages()
+	rightPane.AddPage("content", rightContent, true, true)
+	rightPane.AddPage("status", statusOverlay, true, true)
+	rightPane.SetBackgroundColor(tcell.ColorDefault)
+
+	// Main layout: chat list | right pane.
 	mainLayout := tview.NewFlex().
 		AddItem(a.ChatList, 30, 0, true).
 		AddItem(rightPane, 0, 1, false)
+	mainLayout.SetBackgroundColor(tcell.ColorDefault)
 
-	// Full layout: main + status bar
-	fullLayout := tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(mainLayout, 0, 1, true).
-		AddItem(a.StatusBar, 1, 0, false)
-
-	a.Pages.AddPage("main", fullLayout, true, true)
+	a.Pages.AddPage("main", mainLayout, true, true)
+	a.Pages.SetBackgroundColor(tcell.ColorDefault)
 	a.Application.SetRoot(a.Pages, true)
 }
 
@@ -108,13 +132,21 @@ func (a *App) Refresh() {
 
 	activeChat := a.Store.GetActiveChat()
 	if activeChat != 0 {
+		a.MessageView.SetTypingUser(a.Store.GetTypingUser(activeChat))
 		msgs := a.Store.GetMessages(activeChat)
 		a.MessageView.Update(msgs)
 	}
 }
 
-func (a *App) SetStatus(text string) {
-	a.StatusBar.SetText(text)
+func (a *App) SetStatus(text string, connected bool) {
+	a.StatusBar.SetText(" " + text + " ")
+	if connected {
+		a.StatusBar.SetBackgroundColor(tcell.ColorDarkGreen)
+		a.StatusBar.SetTextColor(tcell.ColorWhite)
+	} else {
+		a.StatusBar.SetBackgroundColor(tcell.ColorOlive)
+		a.StatusBar.SetTextColor(tcell.ColorWhite)
+	}
 }
 
 func (a *App) Run() error {

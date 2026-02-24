@@ -91,6 +91,13 @@ func main() {
 		logger,
 	)
 
+	// Update status when connected
+	tgClient.SetOnReady(func() {
+		app.QueueUpdateDraw(func() {
+			app.SetStatus("Connected", true)
+		})
+	})
+
 	// Wire chat selection
 	app.ChatList.SetOnSelect(func(chatID int64) {
 		store.SetActiveChat(chatID)
@@ -137,7 +144,7 @@ func main() {
 			if err := tgClient.SendMessage(ctx, chatID, text); err != nil {
 				logger.Error("failed to send message", zap.Error(err))
 				app.QueueUpdateDraw(func() {
-					app.SetStatus(fmt.Sprintf("[red]Send error: %v", err))
+					app.SetStatus(fmt.Sprintf("Send error: %v", err), false)
 				})
 			}
 		}()
@@ -152,7 +159,7 @@ func main() {
 		if err := tgClient.Run(ctx); err != nil {
 			logger.Error("telegram client error", zap.Error(err))
 			app.QueueUpdateDraw(func() {
-				app.SetStatus(fmt.Sprintf("[red]Disconnected: %v", err))
+				app.SetStatus("Disconnected", false)
 			})
 		}
 	}()

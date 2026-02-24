@@ -36,10 +36,17 @@ type GotdClient struct {
 	self   *tg.User
 
 	peerCache map[int64]tg.InputPeerClass
+	nameCache map[int64]string
 	mu        sync.Mutex
+
+	onReady func()
 }
 
 // NewGotdClient creates a new GotdClient.
+func (c *GotdClient) SetOnReady(fn func()) {
+	c.onReady = fn
+}
+
 func NewGotdClient(apiID int, apiHash, sessionDir string, handler EventHandler, authFlow *TUIAuth, logger *zap.Logger) *GotdClient {
 	return &GotdClient{
 		apiID:      apiID,
@@ -49,6 +56,7 @@ func NewGotdClient(apiID int, apiHash, sessionDir string, handler EventHandler, 
 		authFlow:   authFlow,
 		logger:     logger,
 		peerCache:  make(map[int64]tg.InputPeerClass),
+		nameCache:  make(map[int64]string),
 	}
 }
 
@@ -76,6 +84,48 @@ func (c *GotdClient) Run(ctx context.Context) error {
 		users := e.Users
 		domainMsg := c.convertMessage(msg, users)
 		c.handler.OnNewMessage(domainMsg)
+		return nil
+	})
+
+	// Register typing event handlers.
+	dispatcher.OnUserTyping(func(ctx context.Context, e tg.Entities, update *tg.UpdateUserTyping) error {
+		switch update.Action.(type) {
+		case *tg.SendMessageTypingAction:
+			userName := c.findUserName(update.UserID)
+			if userName == "" {
+				if u, ok := e.Users[update.UserID]; ok {
+					userName = formatUserName(u)
+					c.cacheUserName(update.UserID, userName)
+				} else {
+					userName = "Someone"
+				}
+			}
+			c.handler.OnUserTyping(update.UserID, userName)
+		case *tg.SendMessageCancelAction:
+			c.handler.OnUserTypingStop(update.UserID)
+		}
+		return nil
+	})
+
+	dispatcher.OnChatUserTyping(func(ctx context.Context, e tg.Entities, update *tg.UpdateChatUserTyping) error {
+		switch update.Action.(type) {
+		case *tg.SendMessageTypingAction:
+			userName := "Someone"
+			if p, ok := update.FromID.(*tg.PeerUser); ok {
+				userName = c.findUserName(p.UserID)
+				if userName == "" {
+					if u, ok := e.Users[p.UserID]; ok {
+						userName = formatUserName(u)
+						c.cacheUserName(p.UserID, userName)
+					} else {
+						userName = "Someone"
+					}
+				}
+			}
+			c.handler.OnUserTyping(update.ChatID, userName)
+		case *tg.SendMessageCancelAction:
+			c.handler.OnUserTypingStop(update.ChatID)
+		}
 		return nil
 	})
 
@@ -116,6 +166,11 @@ func (c *GotdClient) Run(ctx context.Context) error {
 			c.logger.Warn("Failed to load initial dialogs", zap.Error(err))
 		} else {
 			c.handler.OnChatListUpdate(chatInfos)
+		}
+
+		// Notify that connection is ready.
+		if c.onReady != nil {
+			c.onReady()
 		}
 
 		// Run gap manager to process updates.
@@ -245,6 +300,20 @@ func (c *GotdClient) cachePeer(chatID int64, peer tg.InputPeerClass) {
 	c.peerCache[chatID] = peer
 }
 
+// cacheUserName stores a user's display name for later lookup (e.g. typing indicators).
+func (c *GotdClient) cacheUserName(userID int64, name string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.nameCache[userID] = name
+}
+
+// findUserName looks up a cached user display name.
+func (c *GotdClient) findUserName(userID int64) string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.nameCache[userID]
+}
+
 // convertMessage converts a tg.Message to a domain.Message.
 func (c *GotdClient) convertMessage(msg *tg.Message, users map[int64]*tg.User) domain.Message {
 	var senderName string
@@ -270,15 +339,30 @@ func (c *GotdClient) convertMessage(msg *tg.Message, users map[int64]*tg.User) d
 		switch p := peerID.(type) {
 		case *tg.PeerUser:
 			chatID = p.UserID
-			// For DMs, if we sent the message, the chatID is the other user.
-			if msg.Out && c.self != nil && chatID == c.self.ID {
-				// In outgoing DMs, PeerID is the recipient, which is correct.
-			}
 		case *tg.PeerChat:
 			chatID = p.ChatID
 		case *tg.PeerChannel:
 			chatID = p.ChannelID
 		}
+	}
+
+	// In DMs, FromID is often nil. Derive sender from PeerID and Out flag.
+	if senderName == "" && !msg.Out {
+		if p, ok := msg.PeerID.(*tg.PeerUser); ok {
+			senderID = p.UserID
+			if u, ok := users[p.UserID]; ok {
+				senderName = formatUserName(u)
+			}
+		}
+	}
+	if senderName == "" && msg.Out && c.self != nil {
+		senderID = c.self.ID
+		senderName = formatUserName(c.self)
+	}
+
+	// Cache the resolved name for typing indicator lookups.
+	if senderID != 0 && senderName != "" {
+		c.cacheUserName(senderID, senderName)
 	}
 
 	return domain.Message{
@@ -313,6 +397,11 @@ func (c *GotdClient) convertHistoryResult(result tg.MessagesMessagesClass) ([]do
 
 	userMap := usersToMap(users)
 
+	// Cache all user names for typing indicator lookups.
+	for id, u := range userMap {
+		c.cacheUserName(id, formatUserName(u))
+	}
+
 	// Messages come in reverse chronological order from the API; reverse them.
 	var domainMsgs []domain.Message
 	for i := len(messages) - 1; i >= 0; i-- {
@@ -337,7 +426,9 @@ func (c *GotdClient) titleFromEntities(elem dialogs.Elem) string {
 	switch p := elem.Dialog.GetPeer().(type) {
 	case *tg.PeerUser:
 		if u, ok := entities.User(p.UserID); ok {
-			return formatUserName(u)
+			name := formatUserName(u)
+			c.cacheUserName(p.UserID, name)
+			return name
 		}
 	case *tg.PeerChat:
 		if ch, ok := entities.Chat(p.ChatID); ok {

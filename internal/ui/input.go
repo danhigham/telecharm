@@ -17,6 +17,9 @@ func NewInput() *Input {
 	inp.SetLabel("> ")
 	inp.SetFieldWidth(0)
 	inp.SetPlaceholder("Type a message...")
+	inp.SetBorder(true).SetTitle(" Input ")
+	inp.SetBackgroundColor(tcell.ColorDefault)
+	inp.SetFieldBackgroundColor(tcell.ColorDefault)
 
 	inp.SetDoneFunc(func(key tcell.Key) {
 		if key == tcell.KeyEnter {
