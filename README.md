@@ -1,4 +1,4 @@
-# tg-tui
+# telecharm
 
 A terminal-based Telegram client built with Go, using the [Charm](https://charm.sh) ecosystem for the UI and [gotd/td](https://github.com/gotd/td) for the Telegram MTProto protocol.
 
@@ -43,7 +43,7 @@ A terminal-based Telegram client built with Go, using the [Charm](https://charm.
 
 ## Configuration
 
-Create the config file at `~/.config/tg-tui/config.yaml`:
+Create the config file at `~/.config/telecharm/config.yaml`:
 
 ```yaml
 telegram:
@@ -52,26 +52,26 @@ telegram:
 log_level: info  # optional, defaults to "info"
 ```
 
-The app stores its data in `~/.config/tg-tui/`:
+The app stores its data in `~/.config/telecharm/`:
 
 | File | Purpose |
 |------|---------|
 | `config.yaml` | API credentials and settings |
 | `session.json` | Telegram session (auto-created after first login) |
-| `tg-tui.log` | Application logs |
+| `telecharm.log` | Application logs |
 
 ## Installation
 
 ```bash
-go install github.com/danhigham/tg-tui/cmd/tg-tui@latest
+go install github.com/danhigham/telecharm/cmd/tg-tui@latest
 ```
 
 Or build from source:
 
 ```bash
-git clone https://github.com/danhigham/tg-tui.git
-cd tg-tui
-go build -o tg-tui ./cmd/tg-tui
+git clone https://github.com/danhigham/telecharm.git
+cd telecharm
+go build -o telecharm ./cmd/tg-tui
 ```
 
 ## Usage
