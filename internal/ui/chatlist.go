@@ -115,9 +115,9 @@ func (m ChatListModel) View() string {
 
 	style := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(borderColor(m.focused)).
 		Width(m.width).
 		Height(m.height)
+	style = applyBorderColor(style, m.focused)
 
 	return style.Render(content)
 }

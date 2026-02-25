@@ -46,9 +46,9 @@ func (m InputModel) Update(msg tea.Msg) (InputModel, tea.Cmd) {
 func (m InputModel) View() string {
 	style := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(borderColor(m.focused)).
 		Width(m.width).
 		Height(m.height)
+	style = applyBorderColor(style, m.focused)
 
 	return style.Render(m.textinput.View())
 }

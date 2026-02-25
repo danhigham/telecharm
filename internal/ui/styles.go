@@ -14,15 +14,24 @@ var (
 	inNameStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color("4")).Bold(true)
 	typingStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Italic(true)
 
-	highlightColor = lipgloss.Color("6")   // cyan
-	dimColor       = lipgloss.Color("240") // gray
+	dimColor = lipgloss.Color("240") // gray
+
+	// Rainbow gradient colors for focused borders (wraps back to start).
+	rainbowBlend = []color.Color{
+		lipgloss.Color("#FF6B9D"), // pink
+		lipgloss.Color("#9B59B6"), // purple
+		lipgloss.Color("#3498DB"), // blue
+		lipgloss.Color("#2ECC71"), // green
+		lipgloss.Color("#FF6B9D"), // pink (wrap)
+	}
 )
 
-func borderColor(focused bool) color.Color {
+// applyBorderColor applies either the rainbow blend (focused) or dim border color.
+func applyBorderColor(s lipgloss.Style, focused bool) lipgloss.Style {
 	if focused {
-		return highlightColor
+		return s.BorderForegroundBlend(rainbowBlend...)
 	}
-	return dimColor
+	return s.BorderForeground(dimColor)
 }
 
 // truncateHeight limits s to at most maxLines lines.

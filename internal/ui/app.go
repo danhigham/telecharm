@@ -21,7 +21,12 @@ const (
 	focusInput
 )
 
-const chatListWidth = 36
+const (
+	defaultSplitPos = 36
+	minSplitPos     = 20
+	maxSplitFrac    = 0.5 // chat list never exceeds half the terminal
+	splitStep       = 4
+)
 
 // inputRenderedHeight is the total height of the input box (4 inner + 2 border).
 const inputRenderedHeight = 6
@@ -39,9 +44,10 @@ type Model struct {
 	client   telegram.Client
 	authFlow *telegram.TUIAuth
 
-	focus  focusTarget
-	width  int
-	height int
+	focus    focusTarget
+	splitPos int // width of the chat list pane (resizable)
+	width    int
+	height   int
 }
 
 // NewModel creates the root model with all sub-components.
@@ -57,9 +63,8 @@ func NewModel(store *state.Store, client telegram.Client, authFlow *telegram.TUI
 		client:      client,
 		authFlow:    authFlow,
 		focus:       focusChatList,
+		splitPos:    defaultSplitPos,
 	}
-
-	m.messageView = m.messageView.SetStatusPill(m.status.View())
 
 	m.auth = m.auth.SetOnSubmit(func(stage domain.AuthState, value string) {
 		switch stage {
@@ -79,6 +84,7 @@ func (m Model) Init() tea.Cmd {
 	return tea.Batch(
 		m.input.Init(),
 		tea.Tick(3*time.Second, func(time.Time) tea.Msg { return SplashDoneMsg{} }),
+		tea.Tick(30*time.Second, func(time.Time) tea.Msg { return clockTickMsg{} }),
 	)
 }
 
@@ -114,7 +120,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		chats := m.store.GetChatList()
 		for _, c := range chats {
 			if c.ID == msg.ChatID {
-				m.messageView = m.messageView.SetChatTitle(c.Title)
+				m.status = m.status.SetChatTitle(c.Title)
 				break
 			}
 		}
@@ -191,12 +197,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.splash = m.splash.TimerDone()
 		return m, nil
 
+	case clockTickMsg:
+		// Re-tick to keep the clock updated
+		return m, tea.Tick(30*time.Second, func(time.Time) tea.Msg { return clockTickMsg{} })
+
 	case StatusMsg:
 		m.status.text = msg.Text
 		m.status.connected = msg.Connected
-		m.messageView = m.messageView.SetStatusPill(m.status.View())
 		if msg.Connected {
 			m.splash = m.splash.ConnReady()
+			if name := m.client.GetSelfName(); name != "" {
+				m.status = m.status.SetUserName(name)
+			}
 		}
 		return m, nil
 
@@ -238,6 +250,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.focus = focusChatList
 			m = m.updateFocus()
 			return m, nil
+		case "[":
+			if m.focus != focusInput {
+				m.splitPos -= splitStep
+				m = m.clampSplitPos()
+				m = m.distributeSize()
+				return m, nil
+			}
+		case "]":
+			if m.focus != focusInput {
+				m.splitPos += splitStep
+				m = m.clampSplitPos()
+				m = m.distributeSize()
+				return m, nil
+			}
 		}
 
 		switch m.focus {
@@ -273,6 +299,9 @@ func (m Model) View() tea.View {
 		return v
 	}
 
+	// Status bar across the top
+	statusBar := m.status.View()
+
 	// Chat list on the left
 	chatListView := m.chatList.View()
 
@@ -281,8 +310,9 @@ func (m Model) View() tea.View {
 	inputView := m.input.View()
 	rightPane := lipgloss.JoinVertical(lipgloss.Left, messagesView, inputView)
 
-	// Join horizontally
-	full := lipgloss.JoinHorizontal(lipgloss.Top, chatListView, rightPane)
+	// Join panes horizontally, then stack status bar on top
+	panes := lipgloss.JoinHorizontal(lipgloss.Top, chatListView, rightPane)
+	full := lipgloss.JoinVertical(lipgloss.Left, statusBar, panes)
 
 	// Clamp to terminal dimensions
 	mainContent := lipgloss.NewStyle().
@@ -302,12 +332,28 @@ func (m Model) View() tea.View {
 	return v
 }
 
-func (m Model) distributeSize() Model {
-	// Full height for content — no status bar row (it floats)
-	contentHeight := m.height
+func (m Model) clampSplitPos() Model {
+	maxPos := int(float64(m.width) * maxSplitFrac)
+	if m.splitPos < minSplitPos {
+		m.splitPos = minSplitPos
+	}
+	if m.splitPos > maxPos {
+		m.splitPos = maxPos
+	}
+	return m
+}
 
-	// Chat list: fixed width, full height
-	clWidth := chatListWidth
+func (m Model) distributeSize() Model {
+	// Status bar takes 1 row at the top
+	m.status = m.status.SetWidth(m.width)
+	contentHeight := m.height - 1
+	if contentHeight < 1 {
+		contentHeight = 1
+	}
+
+	// Chat list: resizable width, full content height
+	m = m.clampSplitPos()
+	clWidth := m.splitPos
 	if clWidth > m.width {
 		clWidth = m.width
 	}

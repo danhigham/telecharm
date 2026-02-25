@@ -14,17 +14,15 @@ import (
 
 // MessageViewModel displays messages using a viewport and glamour for markdown.
 type MessageViewModel struct {
-	viewport    viewport.Model
-	renderer    *glamour.TermRenderer
-	focused     bool
-	width       int
-	height      int
-	chatTitle   string
-	typingUser  string
-	messages    []domain.Message
-	statusPill  string // rendered status pill to show in header
-	loading     bool   // true while fetching older history
-	hasMore     bool   // false when history is exhausted
+	viewport   viewport.Model
+	renderer   *glamour.TermRenderer
+	focused    bool
+	width      int
+	height     int
+	typingUser string
+	messages   []domain.Message
+	loading    bool // true while fetching older history
+	hasMore    bool // false when history is exhausted
 }
 
 func NewMessageViewModel() MessageViewModel {
@@ -70,43 +68,18 @@ func (m MessageViewModel) checkScrollTop() tea.Cmd {
 }
 
 func (m MessageViewModel) View() string {
-	contentW := m.width - 2
 	contentH := m.height - 2
-	if contentW < 0 {
-		contentW = 0
-	}
 	if contentH < 0 {
 		contentH = 0
 	}
 
-	title := " Messages "
-	if m.chatTitle != "" {
-		title = fmt.Sprintf(" %s ", m.chatTitle)
-	}
-
-	// Header: title on left, status pill on right
-	headerStyle := lipgloss.NewStyle().Bold(true).Underline(true).Foreground(lipgloss.Color("170"))
-	titleStr := headerStyle.Render(title)
-
-	header := titleStr
-	if m.statusPill != "" {
-		gap := contentW - lipgloss.Width(titleStr) - lipgloss.Width(m.statusPill)
-		if gap < 1 {
-			gap = 1
-		}
-		header = titleStr + strings.Repeat(" ", gap) + m.statusPill
-	}
-
-	content := header + "\n\n" + m.viewport.View()
-
-	// Truncate content to content area inside border
-	content = truncateHeight(content, contentH)
+	content := truncateHeight(m.viewport.View(), contentH)
 
 	style := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(borderColor(m.focused)).
 		Width(m.width).
 		Height(m.height)
+	style = applyBorderColor(style, m.focused)
 
 	return style.Render(content)
 }
@@ -114,9 +87,9 @@ func (m MessageViewModel) View() string {
 func (m MessageViewModel) SetSize(w, h int) MessageViewModel {
 	m.width = w
 	m.height = h
-	// Viewport inner: border (2) + header line (1) + blank row (1)
+	// Viewport inner: subtract border (2)
 	vpW := w - 2
-	vpH := h - 2 - 2 // content area (h-2 for border) minus 2 for header+blank
+	vpH := h - 2
 	if vpW < 1 {
 		vpW = 1
 	}
@@ -132,11 +105,6 @@ func (m MessageViewModel) SetSize(w, h int) MessageViewModel {
 
 func (m MessageViewModel) SetFocused(f bool) MessageViewModel {
 	m.focused = f
-	return m
-}
-
-func (m MessageViewModel) SetChatTitle(title string) MessageViewModel {
-	m.chatTitle = title
 	return m
 }
 
@@ -181,11 +149,6 @@ func (m MessageViewModel) PrependMessages(msgs []domain.Message) MessageViewMode
 // SetLoading marks the view as loading older history.
 func (m MessageViewModel) SetLoading(v bool) MessageViewModel {
 	m.loading = v
-	return m
-}
-
-func (m MessageViewModel) SetStatusPill(pill string) MessageViewModel {
-	m.statusPill = pill
 	return m
 }
 

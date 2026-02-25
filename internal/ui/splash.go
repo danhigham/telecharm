@@ -88,11 +88,13 @@ func (s SplashModel) View() string {
 		return ""
 	}
 
-	return lipgloss.NewStyle().
-		Border(lipgloss.DoubleBorder()).
-		BorderForeground(lipgloss.Color("#FFFFFF")).
+	style := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
 		Padding(1, 3).
-		Render(splashArt)
+		Margin(2, 4).
+		BorderForegroundBlend(rainbowBlend...)
+
+	return style.Render(splashArt)
 }
 
 // BoxOffset returns the (x, y) needed to center the splash box

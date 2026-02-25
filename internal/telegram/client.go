@@ -23,4 +23,5 @@ type Client interface {
 	GetHistory(ctx context.Context, chatID int64, limit int, offsetID int) ([]domain.Message, error)
 	GetDialogs(ctx context.Context) ([]domain.ChatInfo, error)
 	MarkAsRead(ctx context.Context, chatID int64, maxID int) error
+	GetSelfName() string
 }

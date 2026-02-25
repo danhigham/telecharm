@@ -54,6 +54,9 @@ type OlderHistoryLoadedMsg struct {
 // SplashDoneMsg signals that the splash screen timeout has elapsed.
 type SplashDoneMsg struct{}
 
+// clockTickMsg triggers a status bar time refresh.
+type clockTickMsg struct{}
+
 // StoreUpdatedCmd returns a command that emits StoreUpdatedMsg.
 func StoreUpdatedCmd() tea.Msg {
 	return StoreUpdatedMsg{}

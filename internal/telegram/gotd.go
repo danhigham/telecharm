@@ -458,6 +458,14 @@ func (c *GotdClient) peerIDFromInputPeer(peer tg.InputPeerClass) int64 {
 	}
 }
 
+// GetSelfName returns the logged-in user's display name.
+func (c *GotdClient) GetSelfName() string {
+	if c.self != nil {
+		return formatUserName(c.self)
+	}
+	return ""
+}
+
 // formatUserName returns a display name for a user.
 func formatUserName(u *tg.User) string {
 	if u.FirstName != "" && u.LastName != "" {

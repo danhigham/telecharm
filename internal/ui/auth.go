@@ -70,7 +70,7 @@ func (m AuthModel) View() string {
 
 	box := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(highlightColor).
+		BorderForegroundBlend(rainbowBlend...).
 		Padding(1, 2).
 		Width(50).
 		Render(title + "\n\n" + m.textinput.View() + "\n\nPress Enter to submit")
