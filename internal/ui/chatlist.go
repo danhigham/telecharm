@@ -8,7 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"github.com/danhigham/tg-tui/internal/domain"
+	"github.com/danhigham/telecharm/internal/domain"
 )
 
 // chatItem implements list.Item for the chat list.

@@ -8,9 +8,9 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"github.com/danhigham/tg-tui/internal/domain"
-	"github.com/danhigham/tg-tui/internal/state"
-	"github.com/danhigham/tg-tui/internal/telegram"
+	"github.com/danhigham/telecharm/internal/domain"
+	"github.com/danhigham/telecharm/internal/state"
+	"github.com/danhigham/telecharm/internal/telegram"
 )
 
 type focusTarget int

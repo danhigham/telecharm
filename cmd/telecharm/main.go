@@ -9,11 +9,11 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/danhigham/tg-tui/internal/config"
-	"github.com/danhigham/tg-tui/internal/domain"
-	"github.com/danhigham/tg-tui/internal/state"
-	"github.com/danhigham/tg-tui/internal/telegram"
-	"github.com/danhigham/tg-tui/internal/ui"
+	"github.com/danhigham/telecharm/internal/config"
+	"github.com/danhigham/telecharm/internal/domain"
+	"github.com/danhigham/telecharm/internal/state"
+	"github.com/danhigham/telecharm/internal/telegram"
+	"github.com/danhigham/telecharm/internal/ui"
 )
 
 func main() {
@@ -33,7 +33,7 @@ func main() {
 	}
 
 	// Setup logging to file
-	logPath := filepath.Join(cfgDir, "tg-tui.log")
+	logPath := filepath.Join(cfgDir, "telecharm.log")
 	logCfg := zap.NewDevelopmentConfig()
 	logCfg.OutputPaths = []string{logPath}
 	logCfg.ErrorOutputPaths = []string{logPath}

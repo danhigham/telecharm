@@ -23,7 +23,7 @@ func Dir() string {
 	if err != nil {
 		cfgDir = filepath.Join(os.Getenv("HOME"), ".config")
 	}
-	return filepath.Join(cfgDir, "tg-tui")
+	return filepath.Join(cfgDir, "telecharm")
 }
 
 func Load(path string) (*Config, error) {

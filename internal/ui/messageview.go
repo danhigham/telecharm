@@ -9,7 +9,7 @@ import (
 	"github.com/charmbracelet/glamour"
 	"charm.land/lipgloss/v2"
 
-	"github.com/danhigham/tg-tui/internal/domain"
+	"github.com/danhigham/telecharm/internal/domain"
 )
 
 // MessageViewModel displays messages using a viewport and glamour for markdown.

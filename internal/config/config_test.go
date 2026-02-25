@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/danhigham/tg-tui/internal/config"
+	"github.com/danhigham/telecharm/internal/config"
 )
 
 func TestLoadConfig(t *testing.T) {

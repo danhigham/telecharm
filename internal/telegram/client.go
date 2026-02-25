@@ -3,7 +3,7 @@ package telegram
 import (
 	"context"
 
-	"github.com/danhigham/tg-tui/internal/domain"
+	"github.com/danhigham/telecharm/internal/domain"
 )
 
 // EventHandler receives events from the Telegram client.

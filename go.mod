@@ -1,4 +1,4 @@
-module github.com/danhigham/tg-tui
+module github.com/danhigham/telecharm
 
 go 1.24.2
 

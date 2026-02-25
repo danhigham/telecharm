@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/danhigham/tg-tui/internal/domain"
-	"github.com/danhigham/tg-tui/internal/state"
+	"github.com/danhigham/telecharm/internal/domain"
+	"github.com/danhigham/telecharm/internal/state"
 )
 
 func TestStore_OnNewMessage(t *testing.T) {

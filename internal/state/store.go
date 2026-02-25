@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/danhigham/tg-tui/internal/domain"
+	"github.com/danhigham/telecharm/internal/domain"
 )
 
 const maxMessages = 500

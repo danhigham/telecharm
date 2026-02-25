@@ -17,7 +17,7 @@ import (
 	"github.com/gotd/td/telegram/updates"
 	"github.com/gotd/td/tg"
 
-	"github.com/danhigham/tg-tui/internal/domain"
+	"github.com/danhigham/telecharm/internal/domain"
 )
 
 // GotdClient implements the Client interface using gotd/td.

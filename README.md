@@ -63,7 +63,7 @@ The app stores its data in `~/.config/telecharm/`:
 ## Installation
 
 ```bash
-go install github.com/danhigham/telecharm/cmd/tg-tui@latest
+go install github.com/danhigham/telecharm/cmd/telecharm@latest
 ```
 
 Or build from source:
@@ -71,13 +71,13 @@ Or build from source:
 ```bash
 git clone https://github.com/danhigham/telecharm.git
 cd telecharm
-go build -o telecharm ./cmd/tg-tui
+go build -o telecharm ./cmd/telecharm
 ```
 
 ## Usage
 
 ```bash
-tg-tui
+telecharm
 ```
 
 On first run, you'll be prompted to authenticate:

@@ -2,7 +2,7 @@ package ui
 
 import (
 	tea "charm.land/bubbletea/v2"
-	"github.com/danhigham/tg-tui/internal/domain"
+	"github.com/danhigham/telecharm/internal/domain"
 )
 
 // StoreUpdatedMsg signals that the store state has changed.
