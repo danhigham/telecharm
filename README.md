@@ -96,6 +96,7 @@ After authenticating, your session is saved and you won't need to log in again.
 |-----|--------|
 | `Tab` | Cycle focus: Chat List → Messages → Input |
 | `Shift+Tab` | Reverse cycle focus |
+| `Ctrl+B` | Toggle chat list sidebar |
 | `Esc` | Return focus to Chat List |
 | `Ctrl+C` | Quit |
 | `q` | Quit (when not typing in input) |

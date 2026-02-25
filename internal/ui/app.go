@@ -44,10 +44,11 @@ type Model struct {
 	client   telegram.Client
 	authFlow *telegram.TUIAuth
 
-	focus    focusTarget
-	splitPos int // width of the chat list pane (resizable)
-	width    int
-	height   int
+	focus           focusTarget
+	splitPos        int // width of the chat list pane (resizable)
+	chatListVisible bool
+	width           int
+	height          int
 }
 
 // NewModel creates the root model with all sub-components.
@@ -62,8 +63,9 @@ func NewModel(store *state.Store, client telegram.Client, authFlow *telegram.TUI
 		store:       store,
 		client:      client,
 		authFlow:    authFlow,
-		focus:       focusChatList,
-		splitPos:    defaultSplitPos,
+		focus:           focusChatList,
+		splitPos:        defaultSplitPos,
+		chatListVisible: true,
 	}
 
 	m.auth = m.auth.SetOnSubmit(func(stage domain.AuthState, value string) {
@@ -238,27 +240,56 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.focus != focusInput {
 				return m, tea.Quit
 			}
+		case "ctrl+b":
+			m.chatListVisible = !m.chatListVisible
+			if !m.chatListVisible && m.focus == focusChatList {
+				m.focus = focusMessages
+				m = m.updateFocus()
+			}
+			m = m.distributeSize()
+			return m, nil
 		case "tab":
-			m.focus = (m.focus + 1) % 3
+			if m.chatListVisible {
+				m.focus = (m.focus + 1) % 3
+			} else {
+				// Toggle between messages and input only
+				if m.focus == focusMessages {
+					m.focus = focusInput
+				} else {
+					m.focus = focusMessages
+				}
+			}
 			m = m.updateFocus()
 			return m, nil
 		case "shift+tab":
-			m.focus = (m.focus + 2) % 3
+			if m.chatListVisible {
+				m.focus = (m.focus + 2) % 3
+			} else {
+				if m.focus == focusMessages {
+					m.focus = focusInput
+				} else {
+					m.focus = focusMessages
+				}
+			}
 			m = m.updateFocus()
 			return m, nil
 		case "esc":
-			m.focus = focusChatList
+			if m.chatListVisible {
+				m.focus = focusChatList
+			} else {
+				m.focus = focusMessages
+			}
 			m = m.updateFocus()
 			return m, nil
 		case "[":
-			if m.focus != focusInput {
+			if m.focus != focusInput && m.chatListVisible {
 				m.splitPos -= splitStep
 				m = m.clampSplitPos()
 				m = m.distributeSize()
 				return m, nil
 			}
 		case "]":
-			if m.focus != focusInput {
+			if m.focus != focusInput && m.chatListVisible {
 				m.splitPos += splitStep
 				m = m.clampSplitPos()
 				m = m.distributeSize()
@@ -302,16 +333,19 @@ func (m Model) View() tea.View {
 	// Status bar across the top
 	statusBar := m.status.View()
 
-	// Chat list on the left
-	chatListView := m.chatList.View()
-
 	// Right pane: messages + input stacked vertically
 	messagesView := m.messageView.View()
 	inputView := m.input.View()
 	rightPane := lipgloss.JoinVertical(lipgloss.Left, messagesView, inputView)
 
 	// Join panes horizontally, then stack status bar on top
-	panes := lipgloss.JoinHorizontal(lipgloss.Top, chatListView, rightPane)
+	var panes string
+	if m.chatListVisible {
+		chatListView := m.chatList.View()
+		panes = lipgloss.JoinHorizontal(lipgloss.Top, chatListView, rightPane)
+	} else {
+		panes = rightPane
+	}
 	full := lipgloss.JoinVertical(lipgloss.Left, statusBar, panes)
 
 	// Clamp to terminal dimensions
@@ -352,12 +386,15 @@ func (m Model) distributeSize() Model {
 	}
 
 	// Chat list: resizable width, full content height
-	m = m.clampSplitPos()
-	clWidth := m.splitPos
-	if clWidth > m.width {
-		clWidth = m.width
+	var clWidth int
+	if m.chatListVisible {
+		m = m.clampSplitPos()
+		clWidth = m.splitPos
+		if clWidth > m.width {
+			clWidth = m.width
+		}
+		m.chatList = m.chatList.SetSize(clWidth, contentHeight)
 	}
-	m.chatList = m.chatList.SetSize(clWidth, contentHeight)
 
 	// Right pane: remaining width
 	rightWidth := m.width - clWidth
