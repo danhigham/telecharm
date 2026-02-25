@@ -12,13 +12,14 @@ type ChatInfo struct {
 }
 
 type Message struct {
-	ID         int
-	ChatID     int64
-	SenderName string
-	SenderID   int64
-	Text       string
-	Timestamp  time.Time
-	Out        bool // true if sent by us
+	ID          int
+	ChatID      int64
+	SenderName  string
+	SenderID    int64
+	Text        string
+	HasMarkdown bool // true if Text contains markdown from Telegram entities
+	Timestamp   time.Time
+	Out         bool // true if sent by us
 }
 
 type AuthState int

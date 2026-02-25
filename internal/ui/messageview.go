@@ -200,18 +200,16 @@ func (m MessageViewModel) renderContentInner(gotoBottom bool) MessageViewModel {
 		}
 
 		text := msg.Text
-		isMarkdown := containsMarkdown(text)
 		multiLine := strings.Contains(text, "\n")
-		if isMarkdown {
+		if msg.HasMarkdown {
 			rendered := m.renderMessageText(text)
 			fmt.Fprintf(&b, "%s %s\n%s\n", ts, name, rendered)
+			b.WriteString("\n")
 		} else if multiLine {
 			fmt.Fprintf(&b, "%s %s\n%s\n", ts, name, text)
+			b.WriteString("\n")
 		} else {
 			fmt.Fprintf(&b, "%s %s %s\n", ts, name, text)
-		}
-		if multiLine || isMarkdown {
-			b.WriteString("\n")
 		}
 	}
 
@@ -234,38 +232,11 @@ func (m MessageViewModel) renderMessageText(text string) string {
 		return text
 	}
 
-	if containsMarkdown(text) {
-		rendered, err := m.renderer.Render(text)
-		if err == nil {
-			rendered = strings.TrimRight(rendered, "\n ")
-			return rendered
-		}
+	rendered, err := m.renderer.Render(text)
+	if err == nil {
+		rendered = strings.TrimRight(rendered, "\n ")
+		return rendered
 	}
 
 	return text
-}
-
-func containsMarkdown(text string) bool {
-	if strings.HasPrefix(text, "#") {
-		return true
-	}
-	if strings.Contains(text, "\n#") {
-		return true
-	}
-	if strings.Contains(text, "|") && strings.Contains(text, "---") {
-		return true
-	}
-	if strings.Contains(text, "```") {
-		return true
-	}
-	if strings.Contains(text, "**") || strings.Contains(text, "__") {
-		return true
-	}
-	if strings.Contains(text, "* ") || strings.Contains(text, "- ") {
-		return true
-	}
-	if strings.Contains(text, "](") {
-		return true
-	}
-	return false
 }

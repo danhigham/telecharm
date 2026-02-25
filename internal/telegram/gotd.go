@@ -366,14 +366,23 @@ func (c *GotdClient) convertMessage(msg *tg.Message, users map[int64]*tg.User) d
 		c.cacheUserName(senderID, senderName)
 	}
 
+	// Convert Telegram entities to markdown-formatted text.
+	text := msg.Message
+	hasMarkdown := false
+	if entities, ok := msg.GetEntities(); ok && len(entities) > 0 {
+		text = EntitiesToMarkdown(text, entities)
+		hasMarkdown = text != msg.Message
+	}
+
 	return domain.Message{
-		ID:         msg.ID,
-		ChatID:     chatID,
-		SenderName: senderName,
-		SenderID:   senderID,
-		Text:       msg.Message,
-		Timestamp:  time.Unix(int64(msg.Date), 0),
-		Out:        msg.Out,
+		ID:          msg.ID,
+		ChatID:      chatID,
+		SenderName:  senderName,
+		SenderID:    senderID,
+		Text:        text,
+		HasMarkdown: hasMarkdown,
+		Timestamp:   time.Unix(int64(msg.Date), 0),
+		Out:         msg.Out,
 	}
 }
 
