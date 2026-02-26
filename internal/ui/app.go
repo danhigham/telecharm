@@ -39,6 +39,7 @@ type Model struct {
 	auth        AuthModel
 	status      statusModel
 	splash      SplashModel
+	help        HelpModel
 
 	store    *state.Store
 	client   telegram.Client
@@ -60,6 +61,7 @@ func NewModel(store *state.Store, client telegram.Client, authFlow *telegram.TUI
 		auth:        NewAuthModel(),
 		status:      newStatusModel(),
 		splash:      NewSplashModel(),
+		help:        NewHelpModel(),
 		store:       store,
 		client:      client,
 		authFlow:    authFlow,
@@ -233,12 +235,29 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, cmd
 		}
 
+		if m.help.IsVisible() {
+			switch msg.String() {
+			case "h", "f1", "esc", "q":
+				m.help = m.help.Toggle()
+				return m, nil
+			}
+			return m, nil
+		}
+
 		switch msg.String() {
 		case "ctrl+c":
 			return m, tea.Quit
+		case "f1":
+			m.help = m.help.Toggle()
+			return m, nil
 		case "q":
 			if m.focus != focusInput {
 				return m, tea.Quit
+			}
+		case "h":
+			if m.focus != focusInput {
+				m.help = m.help.Toggle()
+				return m, nil
 			}
 		case "ctrl+b":
 			m.chatListVisible = !m.chatListVisible
@@ -360,6 +379,12 @@ func (m Model) View() tea.View {
 		fg := lipgloss.NewLayer(m.splash.View()).X(x).Y(y).Z(1)
 		comp := lipgloss.NewCompositor(bg, fg)
 		v.SetContent(comp.Render())
+	} else if m.help.IsVisible() {
+		x, y := m.help.BoxOffset()
+		bg := lipgloss.NewLayer(mainContent)
+		fg := lipgloss.NewLayer(m.help.View()).X(x).Y(y).Z(1)
+		comp := lipgloss.NewCompositor(bg, fg)
+		v.SetContent(comp.Render())
 	} else {
 		v.SetContent(mainContent)
 	}
@@ -413,6 +438,7 @@ func (m Model) distributeSize() Model {
 
 	m.auth = m.auth.SetSize(m.width, m.height)
 	m.splash = m.splash.SetSize(m.width, m.height)
+	m.help = m.help.SetSize(m.width, m.height)
 
 	return m
 }
