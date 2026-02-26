@@ -237,6 +237,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		if m.help.IsVisible() {
 			switch msg.String() {
+			case "ctrl+c":
+				return m, tea.Quit
 			case "h", "f1", "esc", "q":
 				m.help = m.help.Toggle()
 				return m, nil
