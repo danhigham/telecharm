@@ -232,11 +232,72 @@ func (m MessageViewModel) renderMessageText(text string) string {
 		return text
 	}
 
-	rendered, err := m.renderer.Render(text)
-	if err == nil {
-		rendered = strings.TrimRight(rendered, "\n ")
-		return rendered
+	// Glamour collapses single newlines (standard markdown paragraph
+	// continuation). To preserve line breaks from Telegram while still
+	// supporting multi-line markdown constructs (tables, code blocks),
+	// split text into blocks by blank lines. Blocks that are multi-line
+	// markdown (tables, fenced code) are rendered as a whole; regular
+	// text blocks are rendered line-by-line to preserve line breaks.
+	blocks := strings.Split(text, "\n\n")
+	renderedBlocks := make([]string, len(blocks))
+
+	for i, block := range blocks {
+		if block == "" {
+			renderedBlocks[i] = ""
+			continue
+		}
+
+		if isMultiLineMarkdown(block) {
+			r := m.renderBlock(block)
+			renderedBlocks[i] = r
+		} else {
+			// Render each line individually to preserve line breaks.
+			lines := strings.Split(block, "\n")
+			renderedLines := make([]string, len(lines))
+			for j, line := range lines {
+				if line == "" {
+					renderedLines[j] = ""
+				} else {
+					renderedLines[j] = m.renderBlock(line)
+				}
+			}
+			renderedBlocks[i] = strings.Join(renderedLines, "\n")
+		}
 	}
 
-	return text
+	return strings.Join(renderedBlocks, "\n")
+}
+
+// renderBlock renders a single text block through glamour, trimming whitespace.
+func (m MessageViewModel) renderBlock(text string) string {
+	r, err := m.renderer.Render(text)
+	if err != nil {
+		return text
+	}
+	r = strings.TrimRight(r, "\n ")
+	r = strings.TrimLeft(r, "\n")
+	return r
+}
+
+// isMultiLineMarkdown returns true if the block is a multi-line markdown
+// construct that must be rendered as a whole (tables, fenced code blocks).
+func isMultiLineMarkdown(block string) bool {
+	if !strings.Contains(block, "\n") {
+		return false
+	}
+	trimmed := strings.TrimSpace(block)
+	// Fenced code blocks.
+	if strings.HasPrefix(trimmed, "```") {
+		return true
+	}
+	// Tables: all lines contain pipes.
+	lines := strings.Split(trimmed, "\n")
+	allPipes := true
+	for _, line := range lines {
+		if !strings.Contains(line, "|") {
+			allPipes = false
+			break
+		}
+	}
+	return allPipes
 }
