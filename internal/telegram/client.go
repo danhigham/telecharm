@@ -19,7 +19,7 @@ type EventHandler interface {
 // Client is the interface for Telegram operations.
 type Client interface {
 	Run(ctx context.Context) error
-	SendMessage(ctx context.Context, chatID int64, text string) error
+	SendMessage(ctx context.Context, chatID int64, text string) (domain.Message, error)
 	GetHistory(ctx context.Context, chatID int64, limit int, offsetID int) ([]domain.Message, error)
 	GetDialogs(ctx context.Context) ([]domain.ChatInfo, error)
 	MarkAsRead(ctx context.Context, chatID int64, maxID int) error

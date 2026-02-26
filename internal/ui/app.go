@@ -187,12 +187,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		client := m.client
+		store := m.store
 		text := msg.text
 		cmds = append(cmds, func() tea.Msg {
-			err := client.SendMessage(context.Background(), chatID, text)
+			sentMsg, err := client.SendMessage(context.Background(), chatID, text)
 			if err != nil {
 				return SendErrorMsg{Err: err}
 			}
+			store.OnNewMessage(sentMsg)
 			return nil
 		})
 		return m, tea.Batch(cmds...)

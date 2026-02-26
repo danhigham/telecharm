@@ -178,14 +178,46 @@ func (c *GotdClient) Run(ctx context.Context) error {
 	})
 }
 
-// SendMessage sends a text message to the given chat.
-func (c *GotdClient) SendMessage(ctx context.Context, chatID int64, text string) error {
+// SendMessage sends a text message to the given chat and returns the sent message.
+func (c *GotdClient) SendMessage(ctx context.Context, chatID int64, text string) (domain.Message, error) {
 	peer := c.findPeer(chatID)
 	if peer == nil {
-		return fmt.Errorf("unknown peer: %d", chatID)
+		return domain.Message{}, fmt.Errorf("unknown peer: %d", chatID)
 	}
-	_, err := c.sender.To(peer).Text(ctx, text)
-	return err
+	upd, err := c.sender.To(peer).Text(ctx, text)
+	if err != nil {
+		return domain.Message{}, err
+	}
+
+	// Build a domain.Message from the response.
+	msg := domain.Message{
+		ChatID:    chatID,
+		Text:      text,
+		Timestamp: time.Now(),
+		Out:       true,
+	}
+	if c.self != nil {
+		msg.SenderID = c.self.ID
+		msg.SenderName = formatUserName(c.self)
+	}
+
+	// Extract message ID from the response.
+	switch u := upd.(type) {
+	case *tg.UpdateShortSentMessage:
+		msg.ID = u.ID
+		msg.Timestamp = time.Unix(int64(u.Date), 0)
+	case *tg.Updates:
+		for _, update := range u.Updates {
+			if nm, ok := update.(*tg.UpdateNewMessage); ok {
+				if m, ok := nm.Message.(*tg.Message); ok {
+					msg.ID = m.ID
+					msg.Timestamp = time.Unix(int64(m.Date), 0)
+				}
+			}
+		}
+	}
+
+	return msg, nil
 }
 
 // GetHistory retrieves message history for a chat.
