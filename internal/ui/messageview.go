@@ -169,8 +169,17 @@ func (m MessageViewModel) SetLoading(v bool) MessageViewModel {
 	return m
 }
 
+func (m MessageViewModel) bubbleWidth() int {
+	w := m.viewport.Width() * 3 / 4
+	if w < 20 {
+		w = 20
+	}
+	return w
+}
+
 func (m MessageViewModel) recreateRenderer() MessageViewModel {
-	wordWrap := m.viewport.Width() - 2
+	// Word wrap fits inside bubble: bubble width minus border (2) and padding (2).
+	wordWrap := m.bubbleWidth() - 4
 	if wordWrap < 10 {
 		wordWrap = 10
 	}
@@ -207,26 +216,22 @@ func (m MessageViewModel) renderContentInner(gotoBottom bool) MessageViewModel {
 			currentDate = msgDate
 		}
 
-		ts := timeStyle.Render(msg.Timestamp.Format("15:04"))
-
-		var name string
-		if msg.Out {
-			name = outNameStyle.Render(msg.SenderName + ":")
-		} else {
-			name = inNameStyle.Render(msg.SenderName + ":")
+		text := msg.Text
+		if msg.HasMarkdown {
+			text = m.renderMessageText(text)
 		}
 
-		text := msg.Text
-		multiLine := strings.Contains(text, "\n")
-		if msg.HasMarkdown {
-			rendered := m.renderMessageText(text)
-			fmt.Fprintf(&b, "%s %s\n%s\n", ts, name, rendered)
-			b.WriteString("\n")
-		} else if multiLine {
-			fmt.Fprintf(&b, "%s %s\n%s\n", ts, name, text)
-			b.WriteString("\n")
+		bubble := m.renderBubble(text, msg.Out)
+		ts := timeStyle.Render(msg.Timestamp.Format("15:04"))
+
+		if msg.Out {
+			// Right-align timestamp and bubble.
+			tsLine := lipgloss.NewStyle().Width(m.viewport.Width()).Align(lipgloss.Right).Render(ts)
+			bubbleLine := lipgloss.NewStyle().Width(m.viewport.Width()).Align(lipgloss.Right).Render(bubble)
+			b.WriteString(tsLine + "\n" + bubbleLine + "\n")
 		} else {
-			fmt.Fprintf(&b, "%s %s %s\n", ts, name, text)
+			// Left-align timestamp and bubble.
+			b.WriteString(ts + "\n" + bubble + "\n")
 		}
 	}
 
@@ -358,6 +363,59 @@ func splitTableRow(line string) []string {
 		cells[i] = strings.TrimSpace(p)
 	}
 	return cells
+}
+
+var (
+	receivedBubbleColor = lipgloss.Color("99")
+	sentBubbleColor     = lipgloss.Color("63")
+)
+
+// renderBubble wraps text in a speech bubble with a tail.
+func (m MessageViewModel) renderBubble(text string, sent bool) string {
+	bubbleW := m.bubbleWidth()
+	borderColor := receivedBubbleColor
+	if sent {
+		borderColor = sentBubbleColor
+	}
+
+	sc := func(ch string) string {
+		return lipgloss.NewStyle().Foreground(borderColor).Render(ch)
+	}
+
+	// Render the box without the bottom border — we'll build that ourselves.
+	contentW := bubbleW - 2 // subtract border columns
+	boxStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(borderColor).
+		BorderBottom(false).
+		Width(contentW).
+		Padding(0, 1)
+
+	text = strings.TrimRight(text, "\n ")
+	box := boxStyle.Render(text)
+
+	// Build the bottom border with a ┬ connector for the tail.
+	// Inner width = bubbleW - 2 (for the two border columns).
+	inner := bubbleW - 2
+	var bottomLine string
+	var tailLine string
+
+	if sent {
+		// Tail on right: ╰──┬──╯ pattern, then tail below.
+		// ┬ is 3 chars from the right end of the inner area.
+		rightSegment := 2
+		leftSegment := inner - rightSegment - 1 // -1 for the ┬
+		bottomLine = sc("╰") + sc(strings.Repeat("─", leftSegment)) + sc("┬") + sc(strings.Repeat("─", rightSegment)) + sc("╯")
+		tailLine = strings.Repeat(" ", leftSegment+1) + sc("╰─▶")
+	} else {
+		// Tail on left: ╰──┬──╯ pattern, then tail below.
+		leftSegment := 2
+		rightSegment := inner - leftSegment - 1 // -1 for the ┬
+		bottomLine = sc("╰") + sc(strings.Repeat("─", leftSegment)) + sc("┬") + sc(strings.Repeat("─", rightSegment)) + sc("╯")
+		tailLine = sc("◀──╯")
+	}
+
+	return box + "\n" + bottomLine + "\n" + tailLine
 }
 
 var (
