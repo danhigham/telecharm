@@ -31,11 +31,12 @@ type MessageViewModel struct {
 	messages   []domain.Message
 	loading    bool // true while fetching older history
 	hasMore    bool // false when history is exhausted
+	bubbles    bool // true = speech bubbles, false = flat format
 }
 
 func NewMessageViewModel() MessageViewModel {
 	vp := viewport.New()
-	return MessageViewModel{viewport: vp}
+	return MessageViewModel{viewport: vp, bubbles: true}
 }
 
 func (m MessageViewModel) Update(msg tea.Msg) (MessageViewModel, tea.Cmd) {
@@ -53,6 +54,10 @@ func (m MessageViewModel) Update(msg tea.Msg) (MessageViewModel, tea.Cmd) {
 			return m, m.checkScrollTop()
 		case "pgdown":
 			m.viewport.PageDown()
+			return m, nil
+		case "b":
+			m.bubbles = !m.bubbles
+			m = m.renderContent()
 			return m, nil
 		}
 	case tea.MouseWheelMsg:
