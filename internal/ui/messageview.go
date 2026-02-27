@@ -6,8 +6,9 @@ import (
 
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/glamour"
 	"charm.land/lipgloss/v2"
+	"charm.land/lipgloss/v2/table"
+	"github.com/charmbracelet/glamour"
 
 	"github.com/danhigham/telecharm/internal/domain"
 )
@@ -247,7 +248,9 @@ func (m MessageViewModel) renderMessageText(text string) string {
 			continue
 		}
 
-		if isMultiLineMarkdown(block) {
+		if isTable(block) {
+			renderedBlocks[i] = renderTable(block)
+		} else if isMultiLineMarkdown(block) {
 			r := m.renderBlock(block)
 			renderedBlocks[i] = r
 		} else {
@@ -290,14 +293,106 @@ func isMultiLineMarkdown(block string) bool {
 	if strings.HasPrefix(trimmed, "```") {
 		return true
 	}
-	// Tables: all lines contain pipes.
+	// Tables (also handled by isTable, but keep for isMultiLineMarkdown callers).
+	return isTable(block)
+}
+
+// isTable returns true if the block looks like a markdown table.
+func isTable(block string) bool {
+	if !strings.Contains(block, "\n") {
+		return false
+	}
+	trimmed := strings.TrimSpace(block)
 	lines := strings.Split(trimmed, "\n")
-	allPipes := true
+	if len(lines) < 3 {
+		return false
+	}
 	for _, line := range lines {
 		if !strings.Contains(line, "|") {
-			allPipes = false
-			break
+			return false
 		}
 	}
-	return allPipes
+	// Check that line 2 is a separator row (contains dashes).
+	return isSeparatorRow(lines[1])
+}
+
+// isSeparatorRow returns true if the line is a markdown table separator (e.g. "| --- | --- |").
+func isSeparatorRow(line string) bool {
+	cells := splitTableRow(line)
+	if len(cells) == 0 {
+		return false
+	}
+	for _, cell := range cells {
+		cleaned := strings.TrimSpace(cell)
+		cleaned = strings.Trim(cleaned, ":")
+		if len(cleaned) == 0 || strings.Trim(cleaned, "-") != "" {
+			return false
+		}
+	}
+	return true
+}
+
+// splitTableRow splits a markdown table row by pipes and trims leading/trailing empty cells.
+func splitTableRow(line string) []string {
+	line = strings.TrimSpace(line)
+	line = strings.Trim(line, "|")
+	parts := strings.Split(line, "|")
+	cells := make([]string, len(parts))
+	for i, p := range parts {
+		cells[i] = strings.TrimSpace(p)
+	}
+	return cells
+}
+
+var (
+	tablePurple    = lipgloss.Color("99")
+	tableGray      = lipgloss.Color("245")
+	tableLightGray = lipgloss.Color("241")
+
+	tableHeaderStyle  = lipgloss.NewStyle().Foreground(tablePurple).Bold(true).Align(lipgloss.Center)
+	tableCellStyle    = lipgloss.NewStyle().Padding(0, 1)
+	tableOddRowStyle  = tableCellStyle.Foreground(tableGray)
+	tableEvenRowStyle = tableCellStyle.Foreground(tableLightGray)
+)
+
+// renderTable parses a markdown table block and renders it using lipgloss table.
+func renderTable(block string) string {
+	trimmed := strings.TrimSpace(block)
+	lines := strings.Split(trimmed, "\n")
+
+	headers := splitTableRow(lines[0])
+	// lines[1] is the separator row — skip it.
+	var rows [][]string
+	for _, line := range lines[2:] {
+		rows = append(rows, splitTableRow(line))
+	}
+
+	t := table.New().
+		Border(lipgloss.NormalBorder()).
+		BorderStyle(lipgloss.NewStyle().Foreground(tablePurple)).
+		StyleFunc(func(row, col int) lipgloss.Style {
+			switch {
+			case row == table.HeaderRow:
+				return tableHeaderStyle
+			case row%2 == 0:
+				return tableEvenRowStyle
+			default:
+				return tableOddRowStyle
+			}
+		}).
+		Headers(headers...)
+
+	for _, row := range rows {
+		t.Row(row...)
+	}
+
+	// Indent the table by two spaces.
+	rendered := t.String()
+	outLines := strings.Split(rendered, "\n")
+	for i, line := range outLines {
+		if line != "" {
+			outLines[i] = "  " + line
+		}
+	}
+	return strings.Join(outLines, "\n")
 }
