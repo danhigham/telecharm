@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"image/color"
 	"regexp"
 	"strings"
 
@@ -211,7 +212,7 @@ func (m MessageViewModel) renderContentInner(gotoBottom bool) MessageViewModel {
 	var b strings.Builder
 	var currentDate string
 
-	prevOut := (*bool)(nil) // track previous message direction
+	prevOut := (*bool)(nil)
 	for i, msg := range m.messages {
 		msgDate := msg.Timestamp.Format("January 2, 2006")
 		if msgDate != currentDate {
@@ -221,11 +222,9 @@ func (m MessageViewModel) renderContentInner(gotoBottom bool) MessageViewModel {
 			sep := daySeparatorStyle.Render(fmt.Sprintf("───── %s ─────", msgDate))
 			b.WriteString(sep + "\n")
 			currentDate = msgDate
-			prevOut = nil // reset after day separator
+			prevOut = nil
 		}
 
-		// Check if the next message continues in the same direction.
-		contiguous := prevOut != nil && *prevOut == msg.Out
 		lastInRun := i+1 >= len(m.messages) || m.messages[i+1].Out != msg.Out ||
 			m.messages[i+1].Timestamp.Format("January 2, 2006") != msgDate
 
@@ -234,26 +233,20 @@ func (m MessageViewModel) renderContentInner(gotoBottom bool) MessageViewModel {
 			text = m.renderMessageText(text)
 		}
 
-		bubble := m.renderBubble(text, msg.Out, lastInRun)
+		result := m.renderBubble(text, msg.Out, true, lastInRun)
+		ts := timeStyle.Render(msg.Timestamp.Format("15:04"))
+		bubbleWithTs := attachTimestamp(result.content, ts, msg.Out, true)
 
 		if msg.Out {
-			if !contiguous {
-				ts := timeStyle.Render(msg.Timestamp.Format("15:04"))
-				tsLine := lipgloss.NewStyle().Width(m.viewport.Width()).Align(lipgloss.Right).Render(ts)
-				b.WriteString(tsLine + "\n")
-			}
-			bubbleLine := lipgloss.NewStyle().Width(m.viewport.Width()).Align(lipgloss.Right).Render(bubble)
+			bubbleLine := lipgloss.NewStyle().Width(m.viewport.Width()).Align(lipgloss.Right).Render(bubbleWithTs)
 			b.WriteString(bubbleLine + "\n")
 		} else {
-			if !contiguous {
-				ts := timeStyle.Render(msg.Timestamp.Format("15:04"))
-				b.WriteString(ts + "\n")
-			}
-			b.WriteString(bubble + "\n")
+			b.WriteString(bubbleWithTs + "\n")
 		}
 
 		out := msg.Out
 		prevOut = &out
+		_ = prevOut // used for future contiguous checks
 	}
 
 	if m.typingUser != "" {
@@ -391,8 +384,37 @@ var (
 	sentBubbleColor     = lipgloss.Color("#7B5EA7")
 )
 
-// renderBubble wraps text in a speech bubble, optionally with a tail.
-func (m MessageViewModel) renderBubble(text string, sent bool, showTail bool) string {
+// attachTimestamp places the timestamp next to the first line of the bubble.
+// For received (left-aligned) bubbles, the timestamp goes to the right.
+// For sent (right-aligned) bubbles, the timestamp goes to the left.
+func attachTimestamp(bubble string, ts string, sent bool, hasTopBorder bool) string {
+	lines := strings.Split(bubble, "\n")
+	if len(lines) == 0 {
+		return bubble
+	}
+	// First content line is line 1 if there's a top border, line 0 otherwise.
+	idx := 0
+	if hasTopBorder && len(lines) > 1 {
+		idx = 1
+	}
+	if sent {
+		lines[idx] = ts + " " + lines[idx]
+	} else {
+		lines[idx] = lines[idx] + " " + ts
+	}
+	return strings.Join(lines, "\n")
+}
+
+// bubbleResult holds the rendered bubble and its measured width.
+type bubbleResult struct {
+	content string
+	width   int
+}
+
+// renderBubble wraps text in a speech bubble segment.
+// showTop controls the top border, showTail controls whether the tail is drawn
+// on the bottom border.
+func (m MessageViewModel) renderBubble(text string, sent bool, showTop bool, showTail bool) bubbleResult {
 	maxW := m.bubbleWidth()
 	borderColor := receivedBubbleColor
 	if sent {
@@ -413,8 +435,8 @@ func (m MessageViewModel) renderBubble(text string, sent bool, showTail bool) st
 	}
 	text = strings.Join(textLines, "\n")
 
-	// Render the full box with all borders, then replace the bottom line
-	// with our custom one that includes the tail connector.
+	// Render the full box with all borders so we can measure its width,
+	// then selectively remove top/bottom as needed.
 	boxStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(borderColor).
@@ -423,7 +445,6 @@ func (m MessageViewModel) renderBubble(text string, sent bool, showTail bool) st
 
 	box := boxStyle.Render(text)
 
-	// Measure actual rendered width and remove the last line (bottom border).
 	boxLines := strings.Split(box, "\n")
 	actualW := 0
 	for _, line := range boxLines {
@@ -431,6 +452,12 @@ func (m MessageViewModel) renderBubble(text string, sent bool, showTail bool) st
 			actualW = w
 		}
 	}
+
+	// Remove top border line (first line) if not first in run.
+	if !showTop && len(boxLines) > 1 {
+		boxLines = boxLines[1:]
+	}
+	// Always remove bottom border line — we'll build our own if needed.
 	if len(boxLines) > 1 {
 		boxLines = boxLines[:len(boxLines)-1]
 	}
@@ -446,7 +473,7 @@ func (m MessageViewModel) renderBubble(text string, sent bool, showTail bool) st
 	if !showTail {
 		// Plain bottom border, no tail.
 		bottomLine := sc("╰" + strings.Repeat("─", inner) + "╯")
-		return box + "\n" + bottomLine
+		return bubbleResult{content: box + "\n" + bottomLine, width: actualW}
 	}
 
 	var bottomLine string
@@ -472,7 +499,56 @@ func (m MessageViewModel) renderBubble(text string, sent bool, showTail bool) st
 		tailLine = sc("◀──╯")
 	}
 
-	return box + "\n" + bottomLine + "\n" + tailLine
+	return bubbleResult{content: box + "\n" + bottomLine + "\n" + tailLine, width: actualW}
+}
+
+// renderJoinLine builds a transition line between two contiguous bubbles
+// of different widths. Both bubbles are left-aligned (for received) or
+// right-aligned (for sent).
+// For left-aligned (narrow → wide):  │              ╰────╮
+// For left-aligned (wide → narrow):  │    ╭──────────────╯
+func renderJoinLine(prevW, currW int, sent bool, borderColor color.Color) string {
+	sc := func(ch string) string {
+		return lipgloss.NewStyle().Foreground(borderColor).Render(ch)
+	}
+
+	if prevW == currW {
+		return ""
+	}
+
+	narrow := prevW
+	wide := currW
+	growingWider := currW > prevW
+	if !growingWider {
+		narrow = currW
+		wide = prevW
+	}
+
+	// The gap between the narrow and wide right edges (excluding border chars).
+	gap := wide - narrow
+
+	if sent {
+		// Right-aligned: the right edge is fixed, left edge moves.
+		// Growing wider (more to the left): ╭────╯              │
+		// Getting narrower:                  ╰────╮              │
+		// Build from left: transition chars, then spaces, then │
+		if growingWider {
+			// New bubble is wider — extends further left.
+			// ╭ opens new bubble's left, ─── fills gap, ╯ closes old bubble's left
+			return sc("╭") + sc(strings.Repeat("─", gap-1)) + sc("╯") + strings.Repeat(" ", narrow-2) + sc("│")
+		}
+		// New bubble is narrower — retracts from left.
+		// ╰ closes old bubble's left, ─── fills gap, ╮ opens new bubble's left
+		return sc("╰") + sc(strings.Repeat("─", gap-1)) + sc("╮") + strings.Repeat(" ", narrow-2) + sc("│")
+	}
+
+	// Left-aligned: the left edge is fixed at │, right edge moves.
+	if growingWider {
+		// Narrow → wide: │              ╰────╮
+		return sc("│") + strings.Repeat(" ", narrow-2) + sc("╰") + sc(strings.Repeat("─", gap-1)) + sc("╮")
+	}
+	// Wide → narrow: │    ╭──────────────╯
+	return sc("│") + strings.Repeat(" ", narrow-2) + sc("╭") + sc(strings.Repeat("─", gap-1)) + sc("╯")
 }
 
 var (
