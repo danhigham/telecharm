@@ -372,7 +372,7 @@ func splitTableRow(line string) []string {
 }
 
 var (
-	receivedBubbleColor = lipgloss.Color("#8B6CAF")
+	receivedBubbleColor = lipgloss.Color("#A76C6C")
 	sentBubbleColor     = lipgloss.Color("#7B5EA7")
 )
 
