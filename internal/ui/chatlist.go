@@ -54,7 +54,7 @@ func (d chatItemDelegate) Render(w io.Writer, m list.Model, index int, item list
 	cursor := "  "
 	if isSelected {
 		cursor = "> "
-		titleStyle = titleStyle.Foreground(lipgloss.Color("99")).Bold(true)
+		titleStyle = titleStyle.Foreground(lipgloss.Color("#8B6CAF")).Bold(true)
 		descStyle = descStyle.Foreground(lipgloss.Color("250"))
 	}
 	if ci.unreadCount > 0 {
