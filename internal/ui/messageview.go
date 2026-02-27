@@ -427,11 +427,18 @@ func (m MessageViewModel) renderBubble(text string, sent bool, showTop bool, sho
 
 	text = strings.TrimRight(text, "\n ")
 
+	// Pre-wrap text to fit inside the bubble (maxW minus border and padding).
+	wrapWidth := maxW - 4
+	if wrapWidth < 10 {
+		wrapWidth = 10
+	}
+	text = lipgloss.NewStyle().Width(wrapWidth).Render(text)
+
 	// Strip ANSI-styled trailing spaces from each line so lipgloss can
 	// measure the true content width and auto-size the bubble.
 	textLines := strings.Split(text, "\n")
 	for i, line := range textLines {
-		textLines[i] = ansiTrailingSpaces.ReplaceAllString(line, "\x1b[0m")
+		textLines[i] = ansiTrailingSpaces.ReplaceAllString(strings.TrimRight(line, " "), "\x1b[0m")
 	}
 	text = strings.Join(textLines, "\n")
 
