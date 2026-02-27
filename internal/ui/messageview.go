@@ -300,7 +300,13 @@ func (m MessageViewModel) renderBlock(text string) string {
 	}
 	r = strings.TrimRight(r, "\n ")
 	r = strings.TrimLeft(r, "\n")
-	return r
+	// Strip trailing whitespace from each line so lipgloss can measure
+	// the true content width for auto-sizing bubbles.
+	lines := strings.Split(r, "\n")
+	for i, line := range lines {
+		lines[i] = strings.TrimRight(line, " ")
+	}
+	return strings.Join(lines, "\n")
 }
 
 // isMultiLineMarkdown returns true if the block is a multi-line markdown
@@ -386,7 +392,6 @@ func (m MessageViewModel) renderBubble(text string, sent bool) string {
 
 	// Render the box without the bottom border — we'll build that ourselves.
 	// MaxWidth caps the bubble; lipgloss will size to content up to that limit.
-	maxContentW := maxW - 2 // subtract border columns
 	boxStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(borderColor).
@@ -411,9 +416,6 @@ func (m MessageViewModel) renderBubble(text string, sent bool) string {
 
 	// Inner dash count = total width minus the two corner chars.
 	inner := actualW - 2
-	if inner > maxContentW {
-		inner = maxContentW
-	}
 
 	var bottomLine string
 	var tailLine string
@@ -425,8 +427,8 @@ func (m MessageViewModel) renderBubble(text string, sent bool) string {
 		if leftSegment < 0 {
 			leftSegment = 0
 		}
-		bottomLine = sc("╰") + sc(strings.Repeat("─", leftSegment)) + sc("┬") + sc(strings.Repeat("─", rightSegment)) + sc("╯")
-		// Tail aligns under the ┬: 1 (╰ corner) + leftSegment + 1 (┬ itself) = offset to char after ┬
+		bottomLine = sc("╰" + strings.Repeat("─", leftSegment) + "┬" + strings.Repeat("─", rightSegment) + "╯")
+		// ┬ is at visual position (1 + leftSegment) from the left edge.
 		tailLine = strings.Repeat(" ", 1+leftSegment) + sc("╰─▶")
 	} else {
 		// Tail on left: ╰──┬───────╯, then ◀──╯ below.
@@ -435,7 +437,7 @@ func (m MessageViewModel) renderBubble(text string, sent bool) string {
 		if rightSegment < 0 {
 			rightSegment = 0
 		}
-		bottomLine = sc("╰") + sc(strings.Repeat("─", leftSegment)) + sc("┬") + sc(strings.Repeat("─", rightSegment)) + sc("╯")
+		bottomLine = sc("╰" + strings.Repeat("─", leftSegment) + "┬" + strings.Repeat("─", rightSegment) + "╯")
 		tailLine = sc("◀──╯")
 	}
 
