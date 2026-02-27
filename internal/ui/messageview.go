@@ -211,7 +211,8 @@ func (m MessageViewModel) renderContentInner(gotoBottom bool) MessageViewModel {
 	var b strings.Builder
 	var currentDate string
 
-	for _, msg := range m.messages {
+	prevOut := (*bool)(nil) // track previous message direction
+	for i, msg := range m.messages {
 		msgDate := msg.Timestamp.Format("January 2, 2006")
 		if msgDate != currentDate {
 			if currentDate != "" {
@@ -220,25 +221,39 @@ func (m MessageViewModel) renderContentInner(gotoBottom bool) MessageViewModel {
 			sep := daySeparatorStyle.Render(fmt.Sprintf("───── %s ─────", msgDate))
 			b.WriteString(sep + "\n")
 			currentDate = msgDate
+			prevOut = nil // reset after day separator
 		}
+
+		// Check if the next message continues in the same direction.
+		contiguous := prevOut != nil && *prevOut == msg.Out
+		lastInRun := i+1 >= len(m.messages) || m.messages[i+1].Out != msg.Out ||
+			m.messages[i+1].Timestamp.Format("January 2, 2006") != msgDate
 
 		text := msg.Text
 		if msg.HasMarkdown {
 			text = m.renderMessageText(text)
 		}
 
-		bubble := m.renderBubble(text, msg.Out)
-		ts := timeStyle.Render(msg.Timestamp.Format("15:04"))
+		bubble := m.renderBubble(text, msg.Out, lastInRun)
 
 		if msg.Out {
-			// Right-align timestamp and bubble.
-			tsLine := lipgloss.NewStyle().Width(m.viewport.Width()).Align(lipgloss.Right).Render(ts)
+			if !contiguous {
+				ts := timeStyle.Render(msg.Timestamp.Format("15:04"))
+				tsLine := lipgloss.NewStyle().Width(m.viewport.Width()).Align(lipgloss.Right).Render(ts)
+				b.WriteString(tsLine + "\n")
+			}
 			bubbleLine := lipgloss.NewStyle().Width(m.viewport.Width()).Align(lipgloss.Right).Render(bubble)
-			b.WriteString(tsLine + "\n" + bubbleLine + "\n")
+			b.WriteString(bubbleLine + "\n")
 		} else {
-			// Left-align timestamp and bubble.
-			b.WriteString(ts + "\n" + bubble + "\n")
+			if !contiguous {
+				ts := timeStyle.Render(msg.Timestamp.Format("15:04"))
+				b.WriteString(ts + "\n")
+			}
+			b.WriteString(bubble + "\n")
 		}
+
+		out := msg.Out
+		prevOut = &out
 	}
 
 	if m.typingUser != "" {
@@ -376,8 +391,8 @@ var (
 	sentBubbleColor     = lipgloss.Color("#7B5EA7")
 )
 
-// renderBubble wraps text in a speech bubble with a tail.
-func (m MessageViewModel) renderBubble(text string, sent bool) string {
+// renderBubble wraps text in a speech bubble, optionally with a tail.
+func (m MessageViewModel) renderBubble(text string, sent bool, showTail bool) string {
 	maxW := m.bubbleWidth()
 	borderColor := receivedBubbleColor
 	if sent {
@@ -428,18 +443,23 @@ func (m MessageViewModel) renderBubble(text string, sent bool) string {
 	// Inner dash count = total width minus the two corner chars.
 	inner := actualW - 2
 
+	if !showTail {
+		// Plain bottom border, no tail.
+		bottomLine := sc("╰" + strings.Repeat("─", inner) + "╯")
+		return box + "\n" + bottomLine
+	}
+
 	var bottomLine string
 	var tailLine string
 
 	if sent {
-		// Tail on right: ╰───────┬──╯, then ╰─▶ below.
+		// Tail on right: ╰───────┬──╯, then ╰──▶ below.
 		rightSegment := 2
 		leftSegment := inner - rightSegment - 1 // -1 for the ┬
 		if leftSegment < 0 {
 			leftSegment = 0
 		}
 		bottomLine = sc("╰" + strings.Repeat("─", leftSegment) + "┬" + strings.Repeat("─", rightSegment) + "╯")
-		// ┬ is at visual position (1 + leftSegment) from the left edge.
 		tailLine = strings.Repeat(" ", 1+leftSegment) + sc("╰──▶")
 	} else {
 		// Tail on left: ╰──┬───────╯, then ◀──╯ below.
