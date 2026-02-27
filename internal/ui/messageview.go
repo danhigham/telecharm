@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"charm.land/bubbles/v2/viewport"
@@ -12,6 +13,11 @@ import (
 
 	"github.com/danhigham/telecharm/internal/domain"
 )
+
+// ansiTrailingSpaces matches ANSI-styled trailing spaces that glamour adds
+// as padding. These look like real content to lipgloss width measurement
+// but are visually just whitespace.
+var ansiTrailingSpaces = regexp.MustCompile(`(\x1b\[[0-9;]*m[ ]*)+\s*$`)
 
 // MessageViewModel displays messages using a viewport and glamour for markdown.
 type MessageViewModel struct {
@@ -383,6 +389,14 @@ func (m MessageViewModel) renderBubble(text string, sent bool) string {
 	}
 
 	text = strings.TrimRight(text, "\n ")
+
+	// Strip ANSI-styled trailing spaces from each line so lipgloss can
+	// measure the true content width and auto-size the bubble.
+	textLines := strings.Split(text, "\n")
+	for i, line := range textLines {
+		textLines[i] = ansiTrailingSpaces.ReplaceAllString(line, "\x1b[0m")
+	}
+	text = strings.Join(textLines, "\n")
 
 	// Render the full box with all borders, then replace the bottom line
 	// with our custom one that includes the tail connector.
