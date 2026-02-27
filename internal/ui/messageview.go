@@ -9,7 +9,6 @@ import (
 	"charm.land/lipgloss/v2"
 	"charm.land/lipgloss/v2/table"
 	"github.com/charmbracelet/glamour"
-	"github.com/charmbracelet/x/ansi"
 
 	"github.com/danhigham/telecharm/internal/domain"
 )
@@ -301,13 +300,7 @@ func (m MessageViewModel) renderBlock(text string) string {
 	}
 	r = strings.TrimRight(r, "\n ")
 	r = strings.TrimLeft(r, "\n")
-	// Strip trailing whitespace from each line so lipgloss can measure
-	// the true content width for auto-sizing bubbles.
-	lines := strings.Split(r, "\n")
-	for i, line := range lines {
-		lines[i] = strings.TrimRight(line, " ")
-	}
-	return strings.Join(lines, "\n")
+	return r
 }
 
 // isMultiLineMarkdown returns true if the block is a multi-line markdown
@@ -391,38 +384,32 @@ func (m MessageViewModel) renderBubble(text string, sent bool) string {
 
 	text = strings.TrimRight(text, "\n ")
 
-	// Measure the widest visible content line (stripping ANSI, trimming
-	// trailing spaces) to auto-size the bubble to its content.
-	contentW := 0
-	for _, line := range strings.Split(text, "\n") {
-		plain := strings.TrimRight(ansi.Strip(line), " ")
-		w := lipgloss.Width(plain)
-		if w > contentW {
-			contentW = w
-		}
-	}
-	// Add padding (1 each side) to get inner width; cap at max.
-	innerW := contentW + 2
-	maxInner := maxW - 2 // subtract border columns
-	if innerW > maxInner {
-		innerW = maxInner
-	}
-	if innerW < 4 {
-		innerW = 4
-	}
-
-	// Render the box without the bottom border — we'll build that ourselves.
+	// Render the full box with all borders, then replace the bottom line
+	// with our custom one that includes the tail connector.
 	boxStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(borderColor).
-		BorderBottom(false).
-		Width(innerW).
+		MaxWidth(maxW).
 		Padding(0, 1)
 
 	box := boxStyle.Render(text)
 
-	// Total bubble width = inner + 2 border columns.
-	actualW := innerW + 2
+	// Measure actual rendered width and remove the last line (bottom border).
+	boxLines := strings.Split(box, "\n")
+	actualW := 0
+	for _, line := range boxLines {
+		if w := lipgloss.Width(line); w > actualW {
+			actualW = w
+		}
+	}
+	if len(boxLines) > 1 {
+		boxLines = boxLines[:len(boxLines)-1]
+	}
+	box = strings.Join(boxLines, "\n")
+
+	if actualW < 4 {
+		actualW = 4
+	}
 
 	// Inner dash count = total width minus the two corner chars.
 	inner := actualW - 2
