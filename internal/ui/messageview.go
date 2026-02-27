@@ -9,6 +9,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"charm.land/lipgloss/v2/table"
 	"github.com/charmbracelet/glamour"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/danhigham/telecharm/internal/domain"
 )
@@ -390,29 +391,38 @@ func (m MessageViewModel) renderBubble(text string, sent bool) string {
 
 	text = strings.TrimRight(text, "\n ")
 
+	// Measure the widest visible content line (stripping ANSI, trimming
+	// trailing spaces) to auto-size the bubble to its content.
+	contentW := 0
+	for _, line := range strings.Split(text, "\n") {
+		plain := strings.TrimRight(ansi.Strip(line), " ")
+		w := lipgloss.Width(plain)
+		if w > contentW {
+			contentW = w
+		}
+	}
+	// Add padding (1 each side) to get inner width; cap at max.
+	innerW := contentW + 2
+	maxInner := maxW - 2 // subtract border columns
+	if innerW > maxInner {
+		innerW = maxInner
+	}
+	if innerW < 4 {
+		innerW = 4
+	}
+
 	// Render the box without the bottom border — we'll build that ourselves.
-	// MaxWidth caps the bubble; lipgloss will size to content up to that limit.
 	boxStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(borderColor).
 		BorderBottom(false).
-		MaxWidth(maxW).
+		Width(innerW).
 		Padding(0, 1)
 
 	box := boxStyle.Render(text)
 
-	// Measure actual rendered width from the box output.
-	boxLines := strings.Split(box, "\n")
-	actualW := 0
-	for _, line := range boxLines {
-		w := lipgloss.Width(line)
-		if w > actualW {
-			actualW = w
-		}
-	}
-	if actualW < 4 {
-		actualW = 4
-	}
+	// Total bubble width = inner + 2 border columns.
+	actualW := innerW + 2
 
 	// Inner dash count = total width minus the two corner chars.
 	inner := actualW - 2
