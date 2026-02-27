@@ -440,7 +440,7 @@ func (m MessageViewModel) renderBubble(text string, sent bool) string {
 		}
 		bottomLine = sc("╰" + strings.Repeat("─", leftSegment) + "┬" + strings.Repeat("─", rightSegment) + "╯")
 		// ┬ is at visual position (1 + leftSegment) from the left edge.
-		tailLine = strings.Repeat(" ", 1+leftSegment) + sc("╰─▶")
+		tailLine = strings.Repeat(" ", 1+leftSegment) + sc("╰──▶")
 	} else {
 		// Tail on left: ╰──┬───────╯, then ◀──╯ below.
 		leftSegment := 2
