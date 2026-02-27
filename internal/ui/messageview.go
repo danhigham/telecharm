@@ -372,7 +372,7 @@ var (
 
 // renderBubble wraps text in a speech bubble with a tail.
 func (m MessageViewModel) renderBubble(text string, sent bool) string {
-	bubbleW := m.bubbleWidth()
+	maxW := m.bubbleWidth()
 	borderColor := receivedBubbleColor
 	if sent {
 		borderColor = sentBubbleColor
@@ -382,35 +382,59 @@ func (m MessageViewModel) renderBubble(text string, sent bool) string {
 		return lipgloss.NewStyle().Foreground(borderColor).Render(ch)
 	}
 
+	text = strings.TrimRight(text, "\n ")
+
 	// Render the box without the bottom border — we'll build that ourselves.
-	contentW := bubbleW - 2 // subtract border columns
+	// MaxWidth caps the bubble; lipgloss will size to content up to that limit.
+	maxContentW := maxW - 2 // subtract border columns
 	boxStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(borderColor).
 		BorderBottom(false).
-		Width(contentW).
+		MaxWidth(maxW).
 		Padding(0, 1)
 
-	text = strings.TrimRight(text, "\n ")
 	box := boxStyle.Render(text)
 
-	// Build the bottom border with a ┬ connector for the tail.
-	// Inner width = bubbleW - 2 (for the two border columns).
-	inner := bubbleW - 2
+	// Measure actual rendered width from the box output.
+	boxLines := strings.Split(box, "\n")
+	actualW := 0
+	for _, line := range boxLines {
+		w := lipgloss.Width(line)
+		if w > actualW {
+			actualW = w
+		}
+	}
+	if actualW < 4 {
+		actualW = 4
+	}
+
+	// Inner dash count = total width minus the two corner chars.
+	inner := actualW - 2
+	if inner > maxContentW {
+		inner = maxContentW
+	}
+
 	var bottomLine string
 	var tailLine string
 
 	if sent {
-		// Tail on right: ╰──┬──╯ pattern, then tail below.
-		// ┬ is 3 chars from the right end of the inner area.
+		// Tail on right: ╰───────┬──╯, then ╰─▶ below.
 		rightSegment := 2
 		leftSegment := inner - rightSegment - 1 // -1 for the ┬
+		if leftSegment < 0 {
+			leftSegment = 0
+		}
 		bottomLine = sc("╰") + sc(strings.Repeat("─", leftSegment)) + sc("┬") + sc(strings.Repeat("─", rightSegment)) + sc("╯")
-		tailLine = strings.Repeat(" ", leftSegment+1) + sc("╰─▶")
+		// Tail aligns under the ┬: 1 (╰ corner) + leftSegment + 1 (┬ itself) = offset to char after ┬
+		tailLine = strings.Repeat(" ", 1+leftSegment) + sc("╰─▶")
 	} else {
-		// Tail on left: ╰──┬──╯ pattern, then tail below.
+		// Tail on left: ╰──┬───────╯, then ◀──╯ below.
 		leftSegment := 2
 		rightSegment := inner - leftSegment - 1 // -1 for the ┬
+		if rightSegment < 0 {
+			rightSegment = 0
+		}
 		bottomLine = sc("╰") + sc(strings.Repeat("─", leftSegment)) + sc("┬") + sc(strings.Repeat("─", rightSegment)) + sc("╯")
 		tailLine = sc("◀──╯")
 	}
