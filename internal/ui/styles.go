@@ -11,6 +11,8 @@ var (
 	daySeparatorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
 	timeStyle         = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
 	typingStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Italic(true)
+	outNameStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Bold(true)
+	inNameStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color("4")).Bold(true)
 
 	dimColor = lipgloss.Color("240") // gray
 
