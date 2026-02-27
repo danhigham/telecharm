@@ -41,6 +41,22 @@ func (m MessageViewModel) Update(msg tea.Msg) (MessageViewModel, tea.Cmd) {
 		case "k":
 			m.viewport.ScrollUp(1)
 			return m, m.checkScrollTop()
+		case "pgup":
+			m.viewport.PageUp()
+			return m, m.checkScrollTop()
+		case "pgdown":
+			m.viewport.PageDown()
+			return m, nil
+		}
+	case tea.MouseWheelMsg:
+		e := msg.Mouse()
+		switch e.Button {
+		case tea.MouseWheelUp:
+			m.viewport.ScrollUp(3)
+			return m, m.checkScrollTop()
+		case tea.MouseWheelDown:
+			m.viewport.ScrollDown(3)
+			return m, nil
 		}
 	}
 

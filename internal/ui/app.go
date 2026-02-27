@@ -304,6 +304,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m = m.updateFocus()
 			return m, nil
+		case "j", "k":
+			if m.focus != focusInput {
+				var cmd tea.Cmd
+				m.messageView, cmd = m.messageView.Update(msg)
+				cmds = append(cmds, cmd)
+				return m, tea.Batch(cmds...)
+			}
+		case "pgup", "pgdown":
+			var cmd tea.Cmd
+			m.messageView, cmd = m.messageView.Update(msg)
+			cmds = append(cmds, cmd)
+			return m, tea.Batch(cmds...)
 		case "[":
 			if m.focus != focusInput && m.chatListVisible {
 				m.splitPos -= splitStep
@@ -336,6 +348,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, tea.Batch(cmds...)
 
+	case tea.MouseWheelMsg:
+		var cmd tea.Cmd
+		m.messageView, cmd = m.messageView.Update(msg)
+		return m, cmd
+
 	case tea.PasteMsg:
 		if m.focus == focusInput {
 			var cmd tea.Cmd
@@ -351,6 +368,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m Model) View() tea.View {
 	v := tea.NewView("")
 	v.AltScreen = true
+	v.MouseMode = tea.MouseModeCellMotion
 
 	if m.width == 0 || m.height == 0 {
 		return v
