@@ -176,7 +176,7 @@ func (m MessageViewModel) SetLoading(v bool) MessageViewModel {
 }
 
 func (m MessageViewModel) bubbleWidth() int {
-	w := m.viewport.Width() * 3 / 4
+	w := m.viewport.Width() * 9 / 10
 	if w < 20 {
 		w = 20
 	}
@@ -372,8 +372,8 @@ func splitTableRow(line string) []string {
 }
 
 var (
-	receivedBubbleColor = lipgloss.Color("99")
-	sentBubbleColor     = lipgloss.Color("63")
+	receivedBubbleColor = lipgloss.Color("170")
+	sentBubbleColor     = lipgloss.Color("#7B5EA7")
 )
 
 // renderBubble wraps text in a speech bubble with a tail.
