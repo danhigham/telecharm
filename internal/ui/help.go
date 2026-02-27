@@ -50,6 +50,7 @@ const helpText = ` Keyboard Shortcuts
  Messages
    j / k         Scroll down / up
    PgUp / PgDn   Page scroll
+   b             Toggle speech bubbles
 
  Input
    Enter         Send message
