@@ -217,41 +217,77 @@ func (m MessageViewModel) renderContentInner(gotoBottom bool) MessageViewModel {
 	var b strings.Builder
 	var currentDate string
 
-	prevOut := (*bool)(nil)
-	for i, msg := range m.messages {
-		msgDate := msg.Timestamp.Format("January 2, 2006")
-		if msgDate != currentDate {
-			if currentDate != "" {
-				b.WriteString("\n")
+	if m.bubbles {
+		prevOut := (*bool)(nil)
+		for i, msg := range m.messages {
+			msgDate := msg.Timestamp.Format("January 2, 2006")
+			if msgDate != currentDate {
+				if currentDate != "" {
+					b.WriteString("\n")
+				}
+				sep := daySeparatorStyle.Render(fmt.Sprintf("───── %s ─────", msgDate))
+				b.WriteString(sep + "\n")
+				currentDate = msgDate
+				prevOut = nil
 			}
-			sep := daySeparatorStyle.Render(fmt.Sprintf("───── %s ─────", msgDate))
-			b.WriteString(sep + "\n")
-			currentDate = msgDate
-			prevOut = nil
+
+			lastInRun := i+1 >= len(m.messages) || m.messages[i+1].Out != msg.Out ||
+				m.messages[i+1].Timestamp.Format("January 2, 2006") != msgDate
+
+			text := msg.Text
+			if msg.HasMarkdown {
+				text = m.renderMessageText(text)
+			}
+
+			result := m.renderBubble(text, msg.Out, true, lastInRun)
+			ts := timeStyle.Render(msg.Timestamp.Format("15:04"))
+			bubbleWithTs := attachTimestamp(result.content, ts, msg.Out, true)
+
+			if msg.Out {
+				bubbleLine := lipgloss.NewStyle().Width(m.viewport.Width()).Align(lipgloss.Right).Render(bubbleWithTs)
+				b.WriteString(bubbleLine + "\n")
+			} else {
+				b.WriteString(bubbleWithTs + "\n")
+			}
+
+			out := msg.Out
+			prevOut = &out
+			_ = prevOut
 		}
+	} else {
+		for _, msg := range m.messages {
+			msgDate := msg.Timestamp.Format("January 2, 2006")
+			if msgDate != currentDate {
+				if currentDate != "" {
+					b.WriteString("\n")
+				}
+				sep := daySeparatorStyle.Render(fmt.Sprintf("───── %s ─────", msgDate))
+				b.WriteString(sep + "\n")
+				currentDate = msgDate
+			}
 
-		lastInRun := i+1 >= len(m.messages) || m.messages[i+1].Out != msg.Out ||
-			m.messages[i+1].Timestamp.Format("January 2, 2006") != msgDate
+			ts := timeStyle.Render(msg.Timestamp.Format("15:04"))
 
-		text := msg.Text
-		if msg.HasMarkdown {
-			text = m.renderMessageText(text)
+			var name string
+			if msg.Out {
+				name = outNameStyle.Render(msg.SenderName + ":")
+			} else {
+				name = inNameStyle.Render(msg.SenderName + ":")
+			}
+
+			text := msg.Text
+			multiLine := strings.Contains(text, "\n")
+			if msg.HasMarkdown {
+				rendered := m.renderMessageText(text)
+				fmt.Fprintf(&b, "%s %s\n%s\n", ts, name, rendered)
+				b.WriteString("\n")
+			} else if multiLine {
+				fmt.Fprintf(&b, "%s %s\n%s\n", ts, name, text)
+				b.WriteString("\n")
+			} else {
+				fmt.Fprintf(&b, "%s %s %s\n", ts, name, text)
+			}
 		}
-
-		result := m.renderBubble(text, msg.Out, true, lastInRun)
-		ts := timeStyle.Render(msg.Timestamp.Format("15:04"))
-		bubbleWithTs := attachTimestamp(result.content, ts, msg.Out, true)
-
-		if msg.Out {
-			bubbleLine := lipgloss.NewStyle().Width(m.viewport.Width()).Align(lipgloss.Right).Render(bubbleWithTs)
-			b.WriteString(bubbleLine + "\n")
-		} else {
-			b.WriteString(bubbleWithTs + "\n")
-		}
-
-		out := msg.Out
-		prevOut = &out
-		_ = prevOut // used for future contiguous checks
 	}
 
 	if m.typingUser != "" {
@@ -259,7 +295,6 @@ func (m MessageViewModel) renderContentInner(gotoBottom bool) MessageViewModel {
 		b.WriteString(typingStyle.Render(fmt.Sprintf("%s is typing...", m.typingUser)))
 	}
 
-	// Wrap content to viewport width so long lines don't overflow
 	wrapped := lipgloss.NewStyle().Width(m.viewport.Width()).Render(b.String())
 	m.viewport.SetContent(wrapped)
 	if gotoBottom {
