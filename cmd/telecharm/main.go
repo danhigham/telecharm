@@ -6,8 +6,10 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"sync"
 
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
 	"github.com/danhigham/telecharm/internal/config"
 	"github.com/danhigham/telecharm/internal/domain"
@@ -35,6 +37,9 @@ func main() {
 	// Setup logging to file
 	logPath := filepath.Join(cfgDir, "telecharm.log")
 	logCfg := zap.NewDevelopmentConfig()
+	if level, err := zapcore.ParseLevel(cfg.LogLevel); err == nil {
+		logCfg.Level = zap.NewAtomicLevelAt(level)
+	}
 	logCfg.OutputPaths = []string{logPath}
 	logCfg.ErrorOutputPaths = []string{logPath}
 	logger, err := logCfg.Build()
@@ -91,7 +96,10 @@ func main() {
 	defer cancel()
 
 	// Run Telegram client in background
+	var tgDone sync.WaitGroup
+	tgDone.Add(1)
 	go func() {
+		defer tgDone.Done()
 		if err := tgClient.Run(ctx); err != nil {
 			logger.Error("telegram client error", zap.Error(err))
 			app.Send(ui.StatusMsg{Text: "Disconnected", Connected: false})
@@ -104,5 +112,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	cancel() // stop telegram client
+	cancel()    // signal telegram client to stop
+	tgDone.Wait() // wait for it to finish saving session before exiting
 }

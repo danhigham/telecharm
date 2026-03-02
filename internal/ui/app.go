@@ -233,22 +233,27 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cfgPath := m.cfgPath
 		cfg := m.cfg
 		return m, func() tea.Msg {
-			_ = cfg.Save(cfgPath)
+			if err := cfg.Save(cfgPath); err != nil {
+				return SendErrorMsg{Err: fmt.Errorf("save config: %w", err)}
+			}
 			return nil
 		}
 
 	case tea.KeyMsg:
+		// Auth takes priority over the splash screen — the connection
+		// request arrives within the 3-second splash window and we must
+		// not swallow the user's keystrokes.
+		if m.auth.IsVisible() {
+			var cmd tea.Cmd
+			m.auth, cmd = m.auth.Update(msg)
+			return m, cmd
+		}
+
 		if m.splash.IsVisible() {
 			if msg.String() == "ctrl+c" {
 				return m, tea.Quit
 			}
 			return m, nil
-		}
-
-		if m.auth.IsVisible() {
-			var cmd tea.Cmd
-			m.auth, cmd = m.auth.Update(msg)
-			return m, cmd
 		}
 
 		if m.help.IsVisible() {
