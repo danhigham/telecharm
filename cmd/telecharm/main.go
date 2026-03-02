@@ -65,7 +65,7 @@ func main() {
 	)
 
 	// Create TUI app with all dependencies
-	app := ui.NewApp(store, tgClient, authFlow)
+	app := ui.NewApp(store, tgClient, authFlow, cfg, cfgPath)
 
 	// Wire drawFunc so store changes trigger re-render
 	store.SetDrawFunc(app.DrawFunc())

@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
+	"github.com/danhigham/telecharm/internal/config"
 	"github.com/danhigham/telecharm/internal/domain"
 	"github.com/danhigham/telecharm/internal/state"
 	"github.com/danhigham/telecharm/internal/telegram"
@@ -44,6 +45,8 @@ type Model struct {
 	store    *state.Store
 	client   telegram.Client
 	authFlow *telegram.TUIAuth
+	cfg      *config.Config
+	cfgPath  string
 
 	focus           focusTarget
 	splitPos        int // width of the chat list pane (resizable)
@@ -53,10 +56,10 @@ type Model struct {
 }
 
 // NewModel creates the root model with all sub-components.
-func NewModel(store *state.Store, client telegram.Client, authFlow *telegram.TUIAuth) Model {
+func NewModel(store *state.Store, client telegram.Client, authFlow *telegram.TUIAuth, cfg *config.Config, cfgPath string) Model {
 	m := Model{
 		chatList:    NewChatListModel(),
-		messageView: NewMessageViewModel(),
+		messageView: NewMessageViewModel(cfg.BubblesEnabled()),
 		input:       NewInputModel(),
 		auth:        NewAuthModel(),
 		status:      newStatusModel(),
@@ -65,6 +68,8 @@ func NewModel(store *state.Store, client telegram.Client, authFlow *telegram.TUI
 		store:       store,
 		client:      client,
 		authFlow:    authFlow,
+		cfg:         cfg,
+		cfgPath:     cfgPath,
 		focus:           focusChatList,
 		splitPos:        defaultSplitPos,
 		chatListVisible: true,
@@ -222,6 +227,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.status.text = fmt.Sprintf("Send error: %v", msg.Err)
 		m.status.connected = false
 		return m, nil
+
+	case BubblesToggledMsg:
+		m.cfg.SetBubbles(msg.Enabled)
+		cfgPath := m.cfgPath
+		cfg := m.cfg
+		return m, func() tea.Msg {
+			_ = cfg.Save(cfgPath)
+			return nil
+		}
 
 	case tea.KeyMsg:
 		if m.splash.IsVisible() {
@@ -500,8 +514,8 @@ type App struct {
 }
 
 // NewApp creates a new App ready to Run.
-func NewApp(store *state.Store, client telegram.Client, authFlow *telegram.TUIAuth) *App {
-	model := NewModel(store, client, authFlow)
+func NewApp(store *state.Store, client telegram.Client, authFlow *telegram.TUIAuth, cfg *config.Config, cfgPath string) *App {
+	model := NewModel(store, client, authFlow, cfg, cfgPath)
 	p := tea.NewProgram(model)
 	return &App{program: p}
 }

@@ -57,6 +57,11 @@ type SplashDoneMsg struct{}
 // clockTickMsg triggers a status bar time refresh.
 type clockTickMsg struct{}
 
+// BubblesToggledMsg is emitted when the user toggles speech bubbles.
+type BubblesToggledMsg struct {
+	Enabled bool
+}
+
 // StoreUpdatedCmd returns a command that emits StoreUpdatedMsg.
 func StoreUpdatedCmd() tea.Msg {
 	return StoreUpdatedMsg{}

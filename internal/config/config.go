@@ -11,6 +11,29 @@ import (
 type Config struct {
 	Telegram TelegramConfig `yaml:"telegram"`
 	LogLevel string         `yaml:"log_level"`
+	Bubbles  *bool          `yaml:"bubbles,omitempty"`
+}
+
+// BubblesEnabled returns the bubbles preference, defaulting to true.
+func (c *Config) BubblesEnabled() bool {
+	if c.Bubbles == nil {
+		return true
+	}
+	return *c.Bubbles
+}
+
+// SetBubbles sets the bubbles preference.
+func (c *Config) SetBubbles(v bool) {
+	c.Bubbles = &v
+}
+
+// Save writes the config to the given path.
+func (c *Config) Save(path string) error {
+	data, err := yaml.Marshal(c)
+	if err != nil {
+		return fmt.Errorf("marshal config: %w", err)
+	}
+	return os.WriteFile(path, data, 0600)
 }
 
 type TelegramConfig struct {

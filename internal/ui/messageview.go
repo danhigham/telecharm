@@ -34,9 +34,9 @@ type MessageViewModel struct {
 	bubbles    bool // true = speech bubbles, false = flat format
 }
 
-func NewMessageViewModel() MessageViewModel {
+func NewMessageViewModel(bubbles bool) MessageViewModel {
 	vp := viewport.New()
-	return MessageViewModel{viewport: vp, bubbles: true}
+	return MessageViewModel{viewport: vp, bubbles: bubbles}
 }
 
 func (m MessageViewModel) Update(msg tea.Msg) (MessageViewModel, tea.Cmd) {
@@ -58,7 +58,10 @@ func (m MessageViewModel) Update(msg tea.Msg) (MessageViewModel, tea.Cmd) {
 		case "b":
 			m.bubbles = !m.bubbles
 			m = m.renderContent()
-			return m, nil
+			enabled := m.bubbles
+			return m, func() tea.Msg {
+				return BubblesToggledMsg{Enabled: enabled}
+			}
 		}
 	case tea.MouseWheelMsg:
 		e := msg.Mouse()
