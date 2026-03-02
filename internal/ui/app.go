@@ -192,14 +192,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		client := m.client
-		store := m.store
 		text := msg.text
 		cmds = append(cmds, func() tea.Msg {
-			sentMsg, err := client.SendMessage(context.Background(), chatID, text)
+			_, err := client.SendMessage(context.Background(), chatID, text)
 			if err != nil {
 				return SendErrorMsg{Err: err}
 			}
-			store.OnNewMessage(sentMsg)
+			// The message will arrive via the update dispatcher (OnNewMessage),
+			// so we don't need to add it to the store manually.
 			return nil
 		})
 		return m, tea.Batch(cmds...)
