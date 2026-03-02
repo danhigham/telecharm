@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
@@ -106,6 +107,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m = m.distributeSize()
 		return m, nil
+
+	case list.FilterMatchesMsg:
+		var cmd tea.Cmd
+		m.chatList, cmd = m.chatList.Update(msg)
+		return m, cmd
 
 	case StoreUpdatedMsg:
 		m = m.refreshFromStore()
@@ -265,6 +271,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			return m, nil
+		}
+
+		// When the chat list filter is active, pass all keys (except
+		// ctrl+c) directly to the list component so typing works.
+		chatFiltering := m.focus == focusChatList && m.chatList.IsFiltering()
+		if chatFiltering && msg.String() != "ctrl+c" {
+			var cmd tea.Cmd
+			m.chatList, cmd = m.chatList.Update(msg)
+			cmds = append(cmds, cmd)
+			return m, tea.Batch(cmds...)
 		}
 
 		switch msg.String() {

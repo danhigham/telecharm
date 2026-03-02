@@ -151,6 +151,10 @@ func (m ChatListModel) SetSize(w, h int) ChatListModel {
 	return m
 }
 
+func (m ChatListModel) IsFiltering() bool {
+	return m.list.FilterState() == list.Filtering
+}
+
 func (m ChatListModel) SetFocused(f bool) ChatListModel {
 	m.focused = f
 	return m
