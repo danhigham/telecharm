@@ -1,35 +1,42 @@
 package ui
 
 import (
-	"charm.land/bubbles/v2/textinput"
+	"charm.land/bubbles/v2/textarea"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 )
 
-// InputModel wraps a bubbles textinput for message composition.
+// InputModel wraps a bubbles textarea for message composition.
 type InputModel struct {
-	textinput textinput.Model
-	focused   bool
-	width     int
-	height    int
+	textarea textarea.Model
+	focused  bool
+	width    int
+	height   int
 }
 
 func NewInputModel() InputModel {
-	ti := textinput.New()
-	ti.Placeholder = "Type a message..."
-	ti.Prompt = "> "
-	ti.CharLimit = 4096
+	ta := textarea.New()
+	ta.Placeholder = "Type a message..."
+	ta.Prompt = ""
+	ta.CharLimit = 4096
+	ta.ShowLineNumbers = false
 
-	return InputModel{textinput: ti}
+	// Remove cursor-line background highlight.
+	s := ta.Styles()
+	s.Focused.CursorLine = lipgloss.NewStyle()
+	ta.SetStyles(s)
+
+	return InputModel{textarea: ta}
 }
 
 func (m InputModel) Update(msg tea.Msg) (InputModel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		if msg.String() == "enter" {
-			text := m.textinput.Value()
+		switch msg.String() {
+		case "enter":
+			text := m.textarea.Value()
 			if text != "" {
-				m.textinput.SetValue("")
+				m.textarea.Reset()
 				return m, func() tea.Msg {
 					return sendMessageMsg{text: text}
 				}
@@ -39,7 +46,7 @@ func (m InputModel) Update(msg tea.Msg) (InputModel, tea.Cmd) {
 	}
 
 	var cmd tea.Cmd
-	m.textinput, cmd = m.textinput.Update(msg)
+	m.textarea, cmd = m.textarea.Update(msg)
 	return m, cmd
 }
 
@@ -50,30 +57,35 @@ func (m InputModel) View() string {
 		Height(m.height)
 	style = applyBorderColor(style, m.focused)
 
-	return style.Render(m.textinput.View())
+	return style.Render(m.textarea.View())
 }
 
 func (m InputModel) Focus() InputModel {
 	m.focused = true
-	_ = m.textinput.Focus()
+	_ = m.textarea.Focus()
 	return m
 }
 
 func (m InputModel) Blur() InputModel {
 	m.focused = false
-	m.textinput.Blur()
+	m.textarea.Blur()
 	return m
 }
 
 func (m InputModel) SetSize(w, h int) InputModel {
 	m.width = w
 	m.height = h
-	// Inner width: subtract border (2) and prompt "> " (2)
-	tiWidth := w - 4
-	if tiWidth < 1 {
-		tiWidth = 1
+	// Inner dimensions: subtract the outer border (1 each side).
+	taWidth := w - 2
+	if taWidth < 1 {
+		taWidth = 1
 	}
-	m.textinput.SetWidth(tiWidth)
+	taHeight := h - 2
+	if taHeight < 1 {
+		taHeight = 1
+	}
+	m.textarea.SetWidth(taWidth)
+	m.textarea.SetHeight(taHeight)
 	return m
 }
 
@@ -85,5 +97,5 @@ func (m InputModel) SetFocused(f bool) InputModel {
 }
 
 func (m InputModel) Init() tea.Cmd {
-	return textinput.Blink
+	return textarea.Blink
 }
