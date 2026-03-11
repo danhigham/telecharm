@@ -50,6 +50,18 @@ func (s *Store) OnNewMessage(msg domain.Message) {
 	s.mu.Lock()
 
 	msgs := s.messages[msg.ChatID]
+
+	// Deduplicate: if we already have this message (e.g. from immediate
+	// display after sending), skip adding it again.
+	if msg.ID != 0 {
+		for _, existing := range msgs {
+			if existing.ID == msg.ID {
+				s.mu.Unlock()
+				return
+			}
+		}
+	}
+
 	msgs = append(msgs, msg)
 	if len(msgs) > maxMessages {
 		msgs = msgs[len(msgs)-maxMessages:]
@@ -59,7 +71,7 @@ func (s *Store) OnNewMessage(msg domain.Message) {
 	// Update chat list: bump unread count and move to top
 	for i, c := range s.chatList {
 		if c.ID == msg.ChatID {
-			if msg.ChatID != s.activeChat || msg.Out {
+			if msg.ChatID != s.activeChat {
 				s.chatList[i].UnreadCount++
 			}
 			s.chatList[i].LastMessage = msg.Text
